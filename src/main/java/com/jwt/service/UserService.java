@@ -2,7 +2,6 @@ package com.jwt.service;
 
 import com.jwt.dto.RegistrationDto;
 import com.jwt.entity.User;
-import com.jwt.redis.TokenRedisService;
 import com.jwt.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder; // BCryptPasswordEncoder 빈이 주입됨 (세션때 빈칸 넣을곳)
+    private final PasswordEncoder passwordEncoder; // BCryptPasswordEncoder 빈이 주입됨
 
     @Transactional
     public User registerUser(RegistrationDto requestDto) {
@@ -28,7 +27,8 @@ public class UserService {
         User user = User.builder()
                 .name(requestDto.getName())
                 .email(requestDto.getEmail())
-                .password(passwordEncoder.encode(requestDto.getPassword())) // (세션때 빈칸 넣을곳)
+                //TODO 10: 비밀번호를 암호화 하려면 어떻게 해야 할까요?
+                .password(/* ________ */.encode(requestDto.getPassword()))
                 .role("USER")
                 .build();
         userRepository.save(user);
