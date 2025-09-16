@@ -47,6 +47,12 @@ public class WebController {
         return "index";
     }
 
+    // 이메일 테스트 페이지
+    @GetMapping("/email")
+    public String emailForm() {
+        return "email";
+    }
+
     // 게시판 목록 페이지 (로그인 후)
     @GetMapping("/board")
     public String boardList(@RequestParam(defaultValue = "0") int page, Model model, @AuthenticationPrincipal User user) {

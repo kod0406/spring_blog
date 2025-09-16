@@ -66,12 +66,17 @@ public class SecurityConfig {
                                 "/js/**",
                                 "/images/**",
                                 "/static/**",
+                                "/email",
 
                                 // -- 회원가입/로그인/로그아웃 등 공개 API
                                 "/api/user/register",
                                 "/api/user/login",
                                 "/api/user/logout",
-                                "/api/user/reset-password/**"  // API 비밀번호 재설정 경로 허용
+                                "/api/user/reset-password/**",  // API 비밀번호 재설정 경로 허용
+
+                                // -- 이메일 발송 관련 API (동아리 세션용)
+                                "/email/**",
+                                "/signup/email"
                         ).permitAll()
                         // 게시판은 인증 필요
                         .requestMatchers("/board/**").authenticated()
