@@ -74,7 +74,7 @@ public class SecurityConfig {
                                 "/api/user/logout",
                                 "/api/user/reset-password/**",  // API 비밀번호 재설정 경로 허용
 
-                                // -- 이메일 발송 관련 API (동아리 세션용)
+                                // -- 이메일 발송 관련 API
                                 "/email/**",
                                 "/signup/email"
                         ).permitAll()

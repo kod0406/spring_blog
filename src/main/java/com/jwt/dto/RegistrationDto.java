@@ -7,4 +7,5 @@ public class RegistrationDto {
     private String name;
     private String email;
     private String password;
+    private String verificationCode; // 이메일 인증 코드 필드
 }

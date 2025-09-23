@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
     private final UserRepository userRepository;
+    private final EmailService emailService; // EmailService 의존성 추가
     private final PasswordEncoder passwordEncoder; // BCryptPasswordEncoder 빈이 주입됨 (세션때 빈칸 넣을곳)
 
     @Transactional
@@ -24,6 +25,17 @@ public class UserService {
             log.warn("[회원가입 실패] 이미 존재하는 이메일: {}", requestDto.getEmail());
             throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
         }
+        // 이메일 인증 코드 검증
+        if (requestDto.getVerificationCode() == null || requestDto.getVerificationCode().trim().isEmpty()) {
+            log.warn("[회원가입 실패] 인증 코드가 입력되지 않음: {}", requestDto.getEmail());
+            throw new IllegalArgumentException("이메일 인증 코드를 입력해주세요.");
+        }
+
+        if (!emailService.verifyEmailCode(requestDto.getEmail(), requestDto.getVerificationCode())) {
+            log.warn("[회원가입 실패] 이메일 인증 실패: {}", requestDto.getEmail());
+            throw new IllegalArgumentException("이메일 인증 코드가 일치하지 않거나 만료되었습니다.");
+        }
+
         // DTO에서 Entity로 변환
         User user = User.builder()
                 .name(requestDto.getName())

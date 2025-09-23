@@ -66,4 +66,28 @@ public class EmailController {
             return ResponseEntity.badRequest().body(response);
         }
     }
+
+    /**
+     * 회원가입 인증 코드 이메일 발송
+     */
+    @PostMapping("/email/send-verification")
+    public ResponseEntity<Map<String, String>> sendVerificationEmail(@RequestBody EmailDto emailDto) {
+        try {
+            mailService.sendVerificationEmail(emailDto.getEmail());
+
+            Map<String, String> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("message", "인증 코드가 이메일로 발송되었습니다. (5분 후 만료)");
+
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("인증 코드 발송 실패: {}", e.getMessage());
+
+            Map<String, String> response = new HashMap<>();
+            response.put("status", "error");
+            response.put("message", "인증 코드 발송에 실패했습니다: " + e.getMessage());
+
+            return ResponseEntity.badRequest().body(response);
+        }
+    }
 }
