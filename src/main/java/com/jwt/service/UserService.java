@@ -2,6 +2,7 @@ package com.jwt.service;
 
 import com.jwt.dto.RegistrationDto;
 import com.jwt.entity.User;
+import com.jwt.emum.EmailVerificationResult;
 import com.jwt.redis.TokenRedisService;
 import com.jwt.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -31,9 +32,18 @@ public class UserService {
             throw new IllegalArgumentException("이메일 인증 코드를 입력해주세요.");
         }
 
-        if (!emailService.verifyEmailCode(requestDto.getEmail(), requestDto.getVerificationCode())) {
-            log.warn("[회원가입 실패] 이메일 인증 실패: {}", requestDto.getEmail());
-            throw new IllegalArgumentException("이메일 인증 코드가 일치하지 않거나 만료되었습니다.");
+        EmailVerificationResult verificationResult = emailService.verifyEmailCodeWithDetails(requestDto.getEmail(), requestDto.getVerificationCode());
+
+        if (verificationResult != EmailVerificationResult.SUCCESS) {
+            log.warn("[회원가입 실패] 이메일 인증 실패: {}, 결과: {}", requestDto.getEmail(), verificationResult);
+            switch (verificationResult) {
+                case EXPIRED:
+                    throw new IllegalArgumentException("인증 코드가 만료되었습니다. 새로운 인증 코드를 요청해주세요.");
+                case INVALID_CODE:
+                    throw new IllegalArgumentException("인증 코드가 일치하지 않습니다. 다시 확인해주세요.");
+                default:
+                    throw new IllegalArgumentException("이메일 인증에 실패했습니다.");
+            }
         }
 
         // DTO에서 Entity로 변환

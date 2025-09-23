@@ -1,5 +1,6 @@
 package com.jwt.service;
 
+import com.jwt.emum.EmailVerificationResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -96,7 +97,7 @@ public class EmailService {
     /**
      * 6자리 랜덤 인증번호 생성
      */
-    private String generateVerificationCode() {
+    public String generateVerificationCode() {
         Random random = new Random();
         int code = 100000 + random.nextInt(900000); // 100000~999999
         return String.valueOf(code);
@@ -178,4 +179,28 @@ public class EmailService {
 
         return isValid;
     }
-}
+
+    /**
+     * 이메일 인증 코드 검증 (상세 결과 반환)
+     */
+    public EmailVerificationResult verifyEmailCodeWithDetails(String email, String inputCode) {
+        String key = VERIFICATION_CODE_PREFIX + email;
+        String storedCode = redisTemplate.opsForValue().get(key);
+
+        if (storedCode == null) {
+            log.warn("인증 코드가 만료되었거나 존재하지 않음: {}", email);
+            return EmailVerificationResult.EXPIRED;
+        }
+
+        boolean isValid = storedCode.equals(inputCode);
+
+        if (isValid) {
+            // 인증 성공 시 Redis에서 삭제
+            redisTemplate.delete(key);
+            log.info("이메일 인증 성공: {}", email);
+            return EmailVerificationResult.SUCCESS;
+        } else {
+            log.warn("이메일 인증 실패 - 잘못된 코드: {}", email);
+            return EmailVerificationResult.INVALID_CODE;
+        }
+    }
