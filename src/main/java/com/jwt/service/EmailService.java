@@ -106,7 +106,7 @@ public class EmailService {
     /**
      * 회원가입 인증 코드 이메일 발송
      */
-    public String sendVerificationEmail(String toEmail) {
+    public void sendVerificationEmail(String toEmail) {
         MimeMessage mimeMessage = javaMailSender.createMimeMessage();
         String verificationCode = generateVerificationCode();
 
@@ -148,38 +148,11 @@ public class EmailService {
             redisTemplate.opsForValue().set(key, verificationCode, VERIFICATION_CODE_EXPIRE_TIME, TimeUnit.MINUTES);
 
             log.info("인증 이메일 발송 성공! 수신자: {}", toEmail);
-            return verificationCode;
         } catch (Exception e) {
             log.error("인증 이메일 발송 실패! 수신자: {}, 오류: {}", toEmail, e.getMessage());
             throw new RuntimeException("인증 이메일 발송에 실패했습니다.", e);
         }
     }
-
-    /**
-     * 이메일 인증 코드 검증 (boolean 함수)
-     */
-    public boolean verifyEmailCode(String email, String inputCode) {
-        String key = VERIFICATION_CODE_PREFIX + email;
-        String storedCode = redisTemplate.opsForValue().get(key);
-
-        if (storedCode == null) {
-            log.warn("인증 코드가 만료되었거나 존재하지 않음: {}", email);
-            return false;
-        }
-
-        boolean isValid = storedCode.equals(inputCode);
-
-        if (isValid) {
-            // 인증 성공 시 Redis에서 삭제
-            redisTemplate.delete(key);
-            log.info("이메일 인증 성공: {}", email);
-        } else {
-            log.warn("이메일 인증 실패 - 잘못된 코드: {}", email);
-        }
-
-        return isValid;
-    }
-
     /**
      * 이메일 인증 코드 검증 (상세 결과 반환)
      */
@@ -204,3 +177,4 @@ public class EmailService {
             return EmailVerificationResult.INVALID_CODE;
         }
     }
+}
