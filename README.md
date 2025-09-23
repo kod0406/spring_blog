@@ -155,6 +155,19 @@ spring:
       password: [REDIS_PASSWORD]    # Redis 비밀번호
       repositories:
         enabled: false
+        
+    mail:
+    host: smtp.gmail.com
+    port: 587
+    username: [GMAIL_USERNAME]         # Gmail 계정
+    password: [GMAIL_APP_PASSWORD]     # Gmail 앱 비밀번호
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          ssl:
 
 server:
   port: 8080                        # 서버 포트
@@ -174,5 +187,7 @@ jwt:
 2. **`[DB_USERNAME]`, `[DB_PASSWORD]`**: 데이터베이스 접속 계정 정보
 3. **`[REDIS_HOST]`, `[REDIS_PASSWORD]`**: Redis 서버 주소 및 비밀번호
 4. **`[JWT_SECRET_KEY]`**: JWT 토큰 서명용 비밀키 (최소 32자 이상)
+5. **`[GMAIL_USERNAME]`**: 인증 메일 발송에 사용할 Gmail 주소
+6. **`[GMAIL_APP_PASSWORD]`**: Gmail 앱 비밀번호(2단계 인증 후 발급, 일반 비밀번호 아님)
 
 ---
