@@ -1,12 +1,13 @@
 package com.jwt.config;
 
-
 import com.jwt.jwt.JwtAuthenticationFilter;
 import com.jwt.jwt.JwtTokenProvider;
 import com.jwt.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -25,6 +26,9 @@ public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
 
+    @Value("${jwt.access-cookie-name}")
+    private String accessCookieName;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
@@ -32,58 +36,66 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter() {
-        return new JwtAuthenticationFilter(jwtTokenProvider, userRepository);
+        return new JwtAuthenticationFilter(jwtTokenProvider, userRepository, accessCookieName);
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Order(1)
+    public SecurityFilterChain apiSecurityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(Customizer.withDefaults()) // 전역 CORS 설정을 사용하도록 명시
-                .httpBasic(httpBasic -> httpBasic.disable()) // http basic auth 비활성화
-                .csrf(csrf -> csrf.disable()) // csrf 비활성화
-                .logout(logout -> logout.disable()) // 기본 로그아웃 비활성화
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // 세션 STATELESS 설정
+                .securityMatcher("/api/**")
+                .cors(Customizer.withDefaults())
+                .httpBasic(httpBasic -> httpBasic.disable())
+                .formLogin(formLogin -> formLogin.disable())
+                .csrf(csrf -> csrf.disable())
+                .logout(logout -> logout.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> response.sendError(401, "로그인이 필요합니다."))
+                        .accessDeniedHandler((request, response, accessDeniedException) -> response.sendError(403, "접근 권한이 없습니다."))
+                )
+                .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
+                .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
+
+    @Bean
+    @Order(2)
+    public SecurityFilterChain webSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .cors(Customizer.withDefaults())
+                .httpBasic(httpBasic -> httpBasic.disable())
+                .formLogin(formLogin -> formLogin.disable())
+                .csrf(csrf -> csrf.disable())
+                .logout(logout -> logout.disable())
+                .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) -> response.sendRedirect("/login"))
+                        .accessDeniedHandler((request, response, accessDeniedException) -> response.sendRedirect("/login"))
                 )
                 .authorizeHttpRequests(authorize -> authorize
-                        // -- CORS Preflight 요청은 항상 허용
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
-                                // -- Swagger UI & API Docs
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/swagger-resources/**",
-                                "/webjars/**",
-
-                                // -- 웹 페이지 접근 허용 (Thymeleaf)
                                 "/",
                                 "/login",
+                                "/error",
                                 "/register",
                                 "/reset-password",
-                                "/reset-password/**",  // 비밀번호 재설정 관련 모든 경로 허용
-                                "/logout",  // 사용자 정의 로그아웃 경로 허용
+                                "/reset-password/**",
                                 "/css/**",
                                 "/js/**",
                                 "/images/**",
                                 "/static/**",
+                                "/h2-console/**",
                                 "/email",
-
-                                // -- 회원가입/로그인/로그아웃 등 공개 API
-                                "/api/user/register",
-                                "/api/user/login",
-                                "/api/user/logout",
-                                "/api/user/reset-password/**",  // API 비밀번호 재설정 경로 허용
-
-                                // -- 이메일 발송 관련 API
                                 "/email/**",
                                 "/signup/email"
                         ).permitAll()
-                        // 게시판은 인증 필요
-                        .requestMatchers("/board/**").authenticated()
-                        // 그 외 모든 요청은 인증 필요
+                        .requestMatchers(HttpMethod.GET, "/posts", "/posts/{postId}", "/board", "/board/{postId}").permitAll()
+                        .requestMatchers("/admin/**", "/posts/write", "/board/write", "/posts/**/edit", "/board/**/edit", "/logout").authenticated()
                         .anyRequest().authenticated()
                 )
-                // JWT 인증 필터를 UsernamePasswordAuthenticationFilter 앞에 추가
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

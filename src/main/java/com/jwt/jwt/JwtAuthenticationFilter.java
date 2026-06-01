@@ -9,104 +9,135 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.List;
 
 @RequiredArgsConstructor
 @Slf4j
-public class JwtAuthenticationFilter extends OncePerRequestFilter  {
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
     private final JwtTokenProvider jwtTokenProvider;
-    private final UserRepository userRepository; // 사용자 조회용 추가
+    private final UserRepository userRepository;
+    private final String accessCookieName;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+        String token = extractToken(request);
+        boolean publicPath = isPublicPath(request);
+
+        if (token == null) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        if (!jwtTokenProvider.validateToken(token)) {
+            SecurityContextHolder.clearContext();
+            if (publicPath) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "유효하지 않은 JWT 토큰입니다.");
+            return;
+        }
+
+        User user = findUser(token);
+        if (user == null) {
+            SecurityContextHolder.clearContext();
+            if (publicPath) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "토큰 사용자를 찾을 수 없습니다.");
+            return;
+        }
+
+        List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole()));
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(user, null, authorities);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        filterChain.doFilter(request, response);
+    }
 
     private String extractToken(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
         if (cookies == null) {
             return null;
         }
-        return Arrays.stream(request.getCookies()).filter(cookie -> "jwt_token".equals(cookie.getName())).map(Cookie::getValue).findFirst().orElse(null);
+
+        return Arrays.stream(cookies)
+                .filter(cookie -> accessCookieName.equals(cookie.getName()))
+                .map(Cookie::getValue)
+                .findFirst()
+                .orElse(null);
     }
-    // 람다로 구현한다면
 
-    @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
-        String requestURI = request.getRequestURI();
-        log.debug("[JWT Filter] 요청 URI: {}", requestURI);
-
-        // 스웨거 및 공개 경로는 토큰 검증 없이 통과
-        if (isPublicPath(requestURI)) {
-            log.debug("[JWT Filter] 공개 경로로 인증 없이 통과: {}", requestURI);
-            filterChain.doFilter(request, response);
-            return;
+    private User findUser(String token) {
+        String userId = jwtTokenProvider.getClaim(token, "sub");
+        if (userId == null) {
+            return null;
         }
 
-        if (request.getCookies() != null) {
-            log.debug("[JWT Filter] 쿠키 개수: {}", request.getCookies().length);
-            Arrays.stream(request.getCookies()).forEach(cookie ->
-                    log.debug("[JWT Filter] 쿠키: {}={}", cookie.getName(), cookie.getValue().substring(0, Math.min(20, cookie.getValue().length())) + "...")
-            );
-        } else {
-            log.warn("[JWT Filter] 쿠키가 없습니다. URI: {}", requestURI);
+        try {
+            return userRepository.findById(Long.parseLong(userId)).orElse(null);
+        } catch (NumberFormatException e) {
+            log.warn("JWT subject is not a numeric user id. sub={}", userId);
+            return null;
         }
-
-        String token = extractToken(request);
-        log.debug("[JWT Filter] 추출된 토큰: {}", token != null ? "존재" : "없음");
-
-        if (token != null) {
-            if (!jwtTokenProvider.validateToken(token)) {
-                log.warn("[JWT Filter] 유효하지 않은 JWT 토큰. URI: {}", request.getRequestURI());
-                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "유효하지 않은 JWT 토큰입니다.");
-                return;
-            } else {
-                log.debug("[JWT Filter] 유효한 JWT 토큰. URI: {}", request.getRequestURI());
-
-                String userId = jwtTokenProvider.getClaim(token, "sub");
-                String userRole = jwtTokenProvider.getClaim(token, "role");
-
-                // 사용자 조회
-                User user = null;
-                try {
-                    user = userRepository.findById(Long.parseLong(userId)).orElse(null);
-                } catch (NumberFormatException e) {
-                    log.warn("[JWT Filter] userId 파싱 실패: {}", userId);
-                }
-
-                if (user == null) {
-                    log.warn("[JWT Filter] 토큰은 유효하지만 사용자 없음. userId={}", userId);
-                }
-
-                java.util.List<org.springframework.security.core.authority.SimpleGrantedAuthority> authorities = new java.util.ArrayList<>();
-                if (userRole != null && !userRole.isEmpty()) {
-                    authorities.add(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + userRole));
-                }
-
-                Object principal = (user != null) ? user : userId; // User 엔티티 우선
-
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(principal, null, authorities);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                LocalDateTime now = LocalDateTime.now();
-                String formattedNow = now.format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 HH시 mm분 ss초"));
-
-                log.debug("[JWT Filter] 인증 정보 설정 완료: principalClass={}, userId={}, role={}, 시간={}", principal.getClass().getSimpleName(), userId, userRole, formattedNow);
-            }
-        }
-
-        filterChain.doFilter(request, response);
     }
-    private boolean isPublicPath(String requestURI) {
-        return requestURI.startsWith("/swagger-ui/") ||
-               requestURI.startsWith("/v3/api-docs/") ||
-               requestURI.startsWith("/swagger-resources/") ||
-               requestURI.startsWith("/webjars/") ||
-               requestURI.equals("/api/user/register") ||
-               requestURI.equals("/api/user/login") ||
-               requestURI.equals("/api/user/logout");
+
+    private boolean isPublicPath(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        String method = request.getMethod();
+
+        if (HttpMethod.OPTIONS.matches(method)) {
+            return true;
+        }
+
+        if (uri.equals("/")
+                || uri.equals("/login")
+                || uri.equals("/register")
+                || uri.equals("/reset-password")
+                || uri.startsWith("/reset-password/")
+                || uri.startsWith("/css/")
+                || uri.startsWith("/js/")
+                || uri.startsWith("/images/")
+                || uri.startsWith("/static/")
+                || uri.startsWith("/h2-console/")
+                || uri.startsWith("/email")
+                || uri.startsWith("/signup/email")
+                || uri.equals("/api/categories")
+                || uri.equals("/api/user/register")
+                || uri.equals("/api/user/login")
+                || uri.startsWith("/api/user/reset-password")
+                || uri.startsWith("/email/")
+                || uri.startsWith("/swagger-ui/")
+                || uri.startsWith("/v3/api-docs/")
+                || uri.startsWith("/swagger-resources/")
+                || uri.startsWith("/webjars/")) {
+            return true;
+        }
+
+        if (HttpMethod.GET.matches(method)) {
+            return uri.equals("/posts")
+                    || uri.equals("/board")
+                    || uri.matches("/posts/\\d+")
+                    || uri.matches("/board/\\d+")
+                    || uri.equals("/api/posts")
+                    || uri.equals("/api/board")
+                    || uri.matches("/api/posts/\\d+")
+                    || uri.matches("/api/board/\\d+")
+                    || uri.matches("/api/posts/\\d+/comments");
+        }
+
+        return false;
     }
 }

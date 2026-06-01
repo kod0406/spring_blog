@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: JWT
+  thymeleaf:
+    cache: false
+  datasource:
+    driver-class-name: ${DB_DRIVER:org.h2.Driver}
+    url: ${DB_URL:jdbc:h2:file:./data/jwt-blog;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: ${JPA_DIALECT:org.hibernate.dialect.H2Dialect}
+  h2:
+    console:
+      enabled: ${H2_CONSOLE_ENABLED:true}
+      path: /h2-console
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      repositories:
+        enabled: false
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          ssl:
+            trust: ${MAIL_HOST:smtp.gmail.com}
+  servlet:
+    multipart:
+      max-file-size: 60MB
+      max-request-size: 60MB
+
+server:
+  port: ${SERVER_PORT:8080}
+
+jwt:
+  secret: ${JWT_SECRET:local-development-secret-key-change-before-production-123456}
+  refresh-Millis: ${JWT_REFRESH_MILLIS:21600000}
+  expiration-Millis: ${JWT_EXPIRATION_MILLIS:300000}
+  access-cookie-name: jwt_token
+  refresh-cookie-name: jwt_refresh_token
+
+app:
+  email-verification:
+    enabled: ${EMAIL_VERIFICATION_ENABLED:false}
+  admin:
+    email: ${ADMIN_EMAIL:${OWNER_EMAIL:}}
+    password: ${ADMIN_PASSWORD:${OWNER_PASSWORD:}}
+    name: ${ADMIN_NAME:${OWNER_NAME:Admin}}
+  owner:
+    email: ${OWNER_EMAIL:}
+    password: ${OWNER_PASSWORD:}
+    name: ${OWNER_NAME:Admin}
+
+oci:
+  object-storage:
+    enabled: ${OCI_OBJECT_STORAGE_ENABLED:false}
+    image-bucket: ${OCI_IMAGE_BUCKET:}
+    video-bucket: ${OCI_VIDEO_BUCKET:}
+    public-base-url: ${OCI_PUBLIC_BASE_URL:}
