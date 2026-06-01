@@ -3,117 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>간단 게시판</title>
+    <title>JWT Blog</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .hero-section {
-            background: linear-gradient(135deg, #007bff, #0056b3);
-            color: white;
-            padding: 100px 0;
-            text-align: center;
-        }
-        .feature-card {
-            margin-bottom: 2rem;
-            transition: transform 0.3s;
-        }
-        .feature-card:hover {
-            transform: translateY(-5px);
-        }
-    </style>
+    <style>body{background:#f7f8fa}.navbar-brand{font-weight:700}.post-title{text-decoration:none;color:#1f2937}.post-title:hover{color:#0d6efd}</style>
 </head>
 <body>
-
-    <!-- 네비게이션 바 -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="/">간단 게시판</a>
-
-            <div class="navbar-nav ms-auto">
-                <div sec:authorize="isAuthenticated()">
-                    <a class="nav-link d-inline" href="/board">게시판</a>
-                    <a class="nav-link d-inline" href="/board/write">글쓰기</a>
-                </div>
-                <div sec:authorize="!isAuthenticated()">
-                    <a class="nav-link d-inline" href="/login">로그인</a>
-                    <a class="nav-link d-inline ms-2" href="/register">회원가입</a>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <!-- 메시지 표시 -->
-    <div class="container mt-3">
-        <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
-            <span th:text="${message}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-
-        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
-            <span th:text="${error}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/">JWT Blog</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="/posts">글 목록</a>
+            <a sec:authorize="hasAnyRole('OWNER','ADMIN')" class="nav-link" href="/admin/posts/new">글쓰기</a>
+            <a sec:authorize="hasAnyRole('OWNER','ADMIN')" class="nav-link" href="/admin/settings/categories">글머리</a>
+            <a sec:authorize="!isAuthenticated()" class="nav-link" href="/login">로그인</a>
+            <a sec:authorize="!isAuthenticated()" class="nav-link" href="/register">회원가입</a>
+            <form sec:authorize="isAuthenticated()" class="d-inline" th:action="@{/logout}" method="post">
+                <button type="submit" class="btn btn-outline-light btn-sm ms-2">로그아웃</button>
+            </form>
         </div>
     </div>
+</nav>
 
-    <!-- 히어로 섹션 -->
-    <section class="hero-section">
-        <div class="container">
-            <h1 class="display-4 fw-bold mb-4">간단 게시판에 오신 것을 환영합니다!</h1>
-            <p class="lead mb-4">자유롭게 소통하고 정보를 공유하는 공간입니다.</p>
+<main class="container py-4">
+    <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
 
-            <div sec:authorize="!isAuthenticated()">
-                <a href="/login" class="btn btn-light btn-lg me-3">로그인</a>
-                <a href="/register" class="btn btn-outline-light btn-lg">회원가입</a>
+    <section class="mb-4">
+        <h1 class="h3 mb-3">최근 글</h1>
+        <div class="mb-3">
+            <a class="btn btn-sm btn-dark me-1" href="/posts">전체</a>
+            <a th:each="category : ${categories}" class="btn btn-sm btn-outline-dark me-1"
+               th:href="@{/posts(category=${category.key})}"
+               th:text="${category.displayName}">글머리</a>
+        </div>
+    </section>
+
+    <section th:if="${posts.size() > 0}">
+        <article class="card mb-3" th:each="post : ${posts}">
+            <div class="card-body">
+                <div class="small text-muted mb-1" th:text="${post.categoryDisplayName}">미분류</div>
+                <h2 class="h5">
+                    <a class="post-title" th:href="@{/posts/{id}(id=${post.postId})}" th:text="${post.title}">제목</a>
+                </h2>
+                <p class="text-muted mb-2" th:text="${#strings.abbreviate(post.content, 140)}">요약</p>
+                <small class="text-muted">
+                    <span th:text="${post.authorName}">작성자</span>
+                    ·
+                    <span th:text="${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}">작성일</span>
+                </small>
             </div>
-        </div>
+        </article>
     </section>
 
-    <!-- 특징 섹션 -->
-    <section class="py-5">
-        <div class="container">
-            <div class="row text-center">
-                <div class="col-md-4">
-                    <div class="card feature-card h-100">
-                        <div class="card-body">
-                            <div class="mb-3">
-                            </div>
-                            <h5 class="card-title">소통</h5>
-                            <p class="card-text">다른 사용자들과 자유롭게 소통하고 의견을 나눠보세요.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card feature-card h-100">
-                        <div class="card-body">
-                            <div class="mb-3">
-                            </div>
-                            <h5 class="card-title">정보 공유</h5>
-                            <p class="card-text">유용한 정보와 지식을 공유하여 함께 성장해요.</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card feature-card h-100">
-                        <div class="card-body">
-                            <div class="mb-3">
-                            </div>
-                            <h5 class="card-title">안전한 환경</h5>
-                            <p class="card-text">안전하고 신뢰할 수 있는 환경에서 활동하세요.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <section th:if="${posts.size() == 0}" class="text-center bg-white border rounded p-5">
+        <h2 class="h5 text-muted">아직 공개된 글이 없습니다.</h2>
     </section>
+</main>
 
-    <!-- 시작하기 섹션 -->
-    <section class="bg-light py-5" sec:authorize="!isAuthenticated()">
-        <div class="container text-center">
-            <h2 class="mb-4">지금 시작해보세요!</h2>
-            <p class="lead mb-4">간단한 회원가입으로 다양한 기능을 이용할 수 있습니다.</p>
-            <a href="/register" class="btn btn-primary btn-lg">회원가입하기</a>
-        </div>
-    </section>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

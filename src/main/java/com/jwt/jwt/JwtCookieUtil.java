@@ -21,8 +21,8 @@ public class JwtCookieUtil {
 
     public ResponseCookie createAccessTokenCookie(String jwt) {
         return ResponseCookie.from(accessCookieName, jwt)
-                .httpOnly(false) // JS에서 접근 가능하도록 변경
-                .secure(false) // localhost 환경에서는 false로 변경
+                .httpOnly(true)
+                .secure(false)
                 .path("/")
                 .maxAge(accessExpirationMillis / 1000)
                 .sameSite("Lax")
@@ -31,8 +31,8 @@ public class JwtCookieUtil {
 
     public ResponseCookie deleteAccessTokenCookie() {
         return ResponseCookie.from(accessCookieName, "")
-                .httpOnly(false) // 생성 시와 동일하게 변경
-                .secure(false) // localhost 환경에서는 false로 변경
+                .httpOnly(true)
+                .secure(false)
                 .path("/")
                 .maxAge(0)
                 .sameSite("Lax")
@@ -41,8 +41,8 @@ public class JwtCookieUtil {
 
     public ResponseCookie createRefreshTokenCookie(String jwt) {
         return ResponseCookie.from(refreshCookieName, jwt)
-                .httpOnly(true) // JS에서 접근 불가능하도록 설정
-                .secure(false) // localhost 환경에서는 false로 변경
+                .httpOnly(true)
+                .secure(false)
                 .path("/")
                 .maxAge(refreshExpirationMillis / 1000)
                 .sameSite("Lax")
@@ -51,13 +51,11 @@ public class JwtCookieUtil {
 
     public ResponseCookie deleteRefreshTokenCookie() {
         return ResponseCookie.from(refreshCookieName, "")
-                .httpOnly(true) // 생성 시와 동일하게 설정
-                .secure(false) // localhost 환경에서는 false로 변경
+                .httpOnly(true)
+                .secure(false)
                 .path("/")
                 .maxAge(0)
                 .sameSite("Lax")
                 .build();
     }
-
-
 }

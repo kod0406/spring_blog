@@ -3,107 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${board.title} + ' - 간단 게시판'">게시글 상세보기</title>
+    <title th:text="${post.title} + ' - JWT Blog'">글 상세 - JWT Blog</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>body{background:#f7f8fa}.navbar-brand{font-weight:700}.post-content{line-height:1.75;min-height:240px}.post-content video{max-width:100%;height:auto}.comment{border-left:3px solid #dee2e6;margin-top:.75rem;padding-left:.75rem}</style>
 </head>
 <body>
-    <!-- 네비게이션 바 -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="/">간단 게시판</a>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="/">JWT Blog</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" href="/posts">글 목록</a>
+            <a sec:authorize="hasAnyRole('OWNER','ADMIN')" class="nav-link" href="/admin/posts/new">글쓰기</a>
+            <a sec:authorize="hasAnyRole('OWNER','ADMIN')" class="nav-link" href="/admin/settings/categories">글머리</a>
+            <a sec:authorize="!isAuthenticated()" class="nav-link" href="/login">로그인</a>
+            <form sec:authorize="isAuthenticated()" class="d-inline" th:action="@{/logout}" method="post">
+                <button type="submit" class="btn btn-outline-light btn-sm ms-2">로그아웃</button>
+            </form>
+        </div>
+    </div>
+</nav>
 
-            <div class="navbar-nav ms-auto">
-                <div sec:authorize="isAuthenticated()">
-                    <a class="nav-link d-inline" href="/board/write">글쓰기</a>
-                    <form class="d-inline" th:action="@{/logout}" method="post">
-                        <button type="submit" class="btn btn-outline-light btn-sm ms-2">로그아웃</button>
-                    </form>
-                </div>
+<main class="container py-4">
+    <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
+    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
 
-                <div sec:authorize="!isAuthenticated()">
-                    <a class="nav-link d-inline" href="/login">로그인</a>
-                    <a class="nav-link d-inline ms-2" href="/register">회원가입</a>
-                </div>
+    <article class="bg-white border rounded p-4">
+        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
+            <div>
+                <div class="text-muted small mb-1" th:text="${post.categoryDisplayName}">미분류</div>
+                <h1 class="h2 mb-2" th:text="${post.title}">글 제목</h1>
+                <p class="text-muted mb-0">
+                    <span th:text="${post.authorName}">작성자</span>
+                    ·
+                    <span th:text="${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}">작성일</span>
+                </p>
+            </div>
+            <div th:if="${isAdmin}" class="btn-group">
+                <a th:href="@{/admin/posts/{id}/edit(id=${post.postId})}" class="btn btn-outline-primary btn-sm">수정</a>
+                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">삭제</button>
             </div>
         </div>
-    </nav>
+        <hr>
+        <div class="post-content" th:utext="${post.renderedContent}">글 내용</div>
+    </article>
 
-    <div class="container mt-4">
-        <!-- 메시지 표시 -->
-        <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
-            <span th:text="${message}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <section class="bg-white border rounded p-4 mt-4">
+        <h2 class="h5">댓글</h2>
+        <div th:if="${canComment}" class="mb-3">
+            <textarea id="commentContent" class="form-control mb-2" rows="3" placeholder="댓글을 입력하세요"></textarea>
+            <button class="btn btn-primary btn-sm" onclick="createComment()">댓글 작성</button>
         </div>
+        <div th:if="${!canComment}" class="text-muted small mb-3">승인된 회원만 댓글을 작성할 수 있습니다.</div>
+        <div id="comments"></div>
+    </section>
 
-        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
-            <span th:text="${error}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
+    <div class="mt-4">
+        <a href="/posts" class="btn btn-outline-secondary">목록</a>
+    </div>
+</main>
 
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card">
-                    <div class="card-header">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h3 th:text="${board.title}">게시글 제목</h3>
-                            <!-- 작성자만 수정/삭제 버튼 표시 -->
-                            <div th:if="${isAuthor}" class="btn-group">
-                                <a th:href="@{/board/{id}/edit(id=${board.boardId})}" class="btn btn-outline-primary btn-sm">수정</a>
-                                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">삭제</button>
-                            </div>
-                        </div>
-                        <div class="d-flex justify-content-between mt-2">
-                            <small class="text-muted">
-                                작성자: <span th:text="${board.authorName}"></span>
-                            </small>
-                            <div>
-                                <small class="text-muted">
-                                    작성일: <span th:text="${#temporals.format(board.createdAt, 'yyyy-MM-dd HH:mm')}"></span>
-                                </small>
-                                <small class="text-muted ms-3" th:if="${board.updatedAt != board.createdAt}">
-                                    수정일: <span th:text="${#temporals.format(board.updatedAt, 'yyyy-MM-dd HH:mm')}"></span>
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div th:text="${board.content}" style="white-space: pre-wrap; min-height: 200px;">
-                            게시글 내용
-                        </div>
-                    </div>
-                    <div class="card-footer">
-                        <div class="d-flex justify-content-between">
-                            <a href="/" class="btn btn-secondary">목록으로</a>
-                            <a sec:authorize="isAuthenticated()" href="/board/write" class="btn btn-primary">새 글 쓰기</a>
-                        </div>
-                    </div>
-                </div>
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">글 삭제</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">이 글을 삭제하시겠습니까?</div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <form th:action="@{/admin/posts/{id}/delete(id=${post.postId})}" method="post">
+                    <button type="submit" class="btn btn-danger">삭제</button>
+                </form>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- 삭제 확인 모달 -->
-    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="deleteModalLabel">게시글 삭제</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    정말로 이 게시글을 삭제하시겠습니까?<br>
-                    삭제된 게시글은 복구할 수 없습니다.
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-                    <form th:action="@{/board/{id}/delete(id=${board.boardId})}" method="post" class="d-inline">
-                        <button type="submit" class="btn btn-danger">삭제</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+<script th:inline="javascript">
+    const postId = /*[[${post.postId}]]*/ 0;
+    const canComment = /*[[${canComment}]]*/ false;
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    async function loadComments() {
+        const res = await fetch(`/api/posts/${postId}/comments`);
+        const json = await res.json();
+        renderComments(document.getElementById('comments'), json.data || []);
+    }
+
+    function renderComments(container, comments) {
+        container.innerHTML = '';
+        comments.forEach(comment => container.appendChild(commentNode(comment)));
+    }
+
+    function commentNode(comment) {
+        const div = document.createElement('div');
+        div.className = 'comment';
+        div.style.marginLeft = `${Math.min(comment.depth, 12) * 18}px`;
+        div.innerHTML = `<div class="small text-muted">${escapeHtml(comment.authorName)} · ${comment.createdAt || ''}</div>
+            <div>${escapeHtml(comment.content)}</div>
+            ${canComment ? `<button class="btn btn-link btn-sm p-0" onclick="replyTo(${comment.commentId})">답글</button>` : ''}
+            <div id="reply-${comment.commentId}"></div>`;
+        (comment.children || []).forEach(child => div.appendChild(commentNode(child)));
+        return div;
+    }
+
+    async function createComment() {
+        const input = document.getElementById('commentContent');
+        await postComment(`/api/posts/${postId}/comments`, input.value);
+        input.value = '';
+        loadComments();
+    }
+
+    function replyTo(commentId) {
+        const target = document.getElementById(`reply-${commentId}`);
+        target.innerHTML = `<textarea class="form-control form-control-sm my-2" rows="2"></textarea><button class="btn btn-outline-primary btn-sm">답글 작성</button>`;
+        target.querySelector('button').onclick = async () => {
+            await postComment(`/api/comments/${commentId}/replies`, target.querySelector('textarea').value);
+            loadComments();
+        };
+    }
+
+    async function postComment(url, content) {
+        const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content})});
+        const json = await res.json();
+        if (!json.success) alert(json.message);
+    }
+
+    function escapeHtml(value) {
+        return String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    }
+
+    loadComments();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

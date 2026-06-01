@@ -1,86 +1,136 @@
 package com.jwt.service;
 
 import com.jwt.dto.RegistrationDto;
-import com.jwt.entity.User;
 import com.jwt.emum.EmailVerificationResult;
+import com.jwt.entity.User;
+import com.jwt.entity.UserRole;
+import com.jwt.entity.UserStatus;
 import com.jwt.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.ApplicationArguments;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class UserService {
+public class UserService implements ApplicationRunner {
 
     private final UserRepository userRepository;
-    private final EmailService emailService; // EmailService 의존성 추가
-    private final PasswordEncoder passwordEncoder; // BCryptPasswordEncoder 빈이 주입됨 (세션때 빈칸 넣을곳)
+    private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.email-verification.enabled:false}")
+    private boolean emailVerificationEnabled;
+
+    @Value("${app.owner.email:}")
+    private String ownerEmail;
+
+    @Value("${app.owner.password:}")
+    private String ownerPassword;
+
+    @Value("${app.owner.name:Owner}")
+    private String ownerName;
+
+    @Override
+    @Transactional
+    public void run(ApplicationArguments args) {
+        if (userRepository.existsByRole(UserRole.OWNER)) {
+            return;
+        }
+        if (ownerEmail == null || ownerEmail.isBlank() || ownerPassword == null || ownerPassword.isBlank()) {
+            log.warn("OWNER_EMAIL/OWNER_PASSWORD not set. Owner account bootstrap skipped.");
+            return;
+        }
+
+        User owner = User.builder()
+                .name(ownerName)
+                .email(ownerEmail.trim())
+                .password(passwordEncoder.encode(ownerPassword))
+                .role(UserRole.OWNER)
+                .status(UserStatus.ACTIVE)
+                .build();
+        userRepository.save(owner);
+        log.info("Owner account bootstrapped. email={}", owner.getEmail());
+    }
 
     @Transactional
     public User registerUser(RegistrationDto requestDto) {
-        if(userRepository.findByEmail(requestDto.getEmail()) != null){
-            log.warn("[회원가입 실패] 이미 존재하는 이메일: {}", requestDto.getEmail());
+        validateRegistration(requestDto);
+        String email = requestDto.getEmail().trim();
+
+        if (userRepository.findByEmail(email) != null) {
             throw new IllegalArgumentException("이미 존재하는 이메일입니다.");
         }
-        // 이메일 인증 코드 검증
-        if (__________ == null || __________.trim().isEmpty()) { // 인증 코드 입력 여부 확인
-            log.warn("[회원가입 실패] 인증 코드가 입력되지 않음: {}", __________);
-            throw new IllegalArgumentException("__________");
-        }
 
-        EmailVerificationResult verificationResult = emailService.verifyEmailCodeWithDetails(requestDto.getEmail(), requestDto.getVerificationCode());
+        verifyEmailIfEnabled(requestDto);
 
-        if (verificationResult __________ EmailVerificationResult.SUCCESS) { // 인증 성공 여부 확인
-            log.warn("[회원가입 실패] 이메일 인증 실패: {}, 결과: {}", __________, verificationResult);
-            switch (verificationResult) {
-                case EXPIRED:
-                    throw new IllegalArgumentException("__________");
-                case INVALID_CODE:
-                    throw new IllegalArgumentException("__________");
-                default:
-            throw new IllegalArgumentException("__________");
-    }
-}
-
-        // DTO에서 Entity로 변환
         User user = User.builder()
-                .name(requestDto.getName())
-                .email(requestDto.getEmail())
-                .password(passwordEncoder.encode(requestDto.getPassword())) // (세션때 빈칸 넣을곳)
-                .role("USER")
+                .name(requestDto.getName().trim())
+                .email(email)
+                .password(passwordEncoder.encode(requestDto.getPassword()))
+                .role(UserRole.USER)
+                .status(UserStatus.PENDING)
                 .build();
-        userRepository.save(user);
-        log.info("[회원가입 성공] 사용자 ID: {}, 이메일: {}", user.getUserId(), user.getEmail());
-        return user;
+
+        return userRepository.save(user);
     }
 
     public User authenticateUser(String email, String rawPassword) {
         User user = userRepository.findByEmail(email);
         if (user == null || !passwordEncoder.matches(rawPassword, user.getPassword())) {
-            log.warn("[로그인 실패] 이메일 또는 비밀번호 불일치: {}", email);
             throw new IllegalArgumentException("이메일 또는 비밀번호가 일치하지 않습니다.");
         }
-        log.info("[로그인 성공] 사용자 ID: {}, 이메일: {}", user.getUserId(), user.getEmail());
+        if (user.getStatusEnum() == UserStatus.PENDING) {
+            throw new IllegalArgumentException("관리자 승인 대기 중입니다.");
+        }
+        if (user.getStatusEnum() == UserStatus.REJECTED) {
+            throw new IllegalArgumentException("가입 승인이 거절된 계정입니다.");
+        }
+        return user;
+    }
+
+    @Transactional(readOnly = true)
+    public List<User> getPendingUsers() {
+        return userRepository.findByStatusOrderByUserIdAsc(UserStatus.PENDING);
+    }
+
+    @Transactional
+    public User approveUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        user.setStatusEnum(UserStatus.ACTIVE);
+        return user;
+    }
+
+    @Transactional
+    public User rejectUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        user.setStatusEnum(UserStatus.REJECTED);
         return user;
     }
 
     @Transactional
     public void resetPassword(String email, String newPassword) {
+        if (newPassword == null || newPassword.length() < 4) {
+            throw new IllegalArgumentException("비밀번호는 최소 4자 이상이어야 합니다.");
+        }
+
         User user = userRepository.findByEmail(email);
         if (user == null) {
-            log.warn("[비밀번호 재설정 실패] 존재하지 않는 이메일: {}", email);
             throw new IllegalArgumentException("해당 이메일로 가입된 계정이 없습니다.");
         }
-        
+
         user.setPassword(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
-        log.info("[비밀번호 재설정 성공] 사용자 ID: {}, 이메일: {}", user.getUserId(), user.getEmail());
     }
 
-    // 이메일로 사용자 찾기
     public User findByEmail(String email) {
         User user = userRepository.findByEmail(email);
         if (user == null) {
@@ -89,10 +139,49 @@ public class UserService {
         return user;
     }
 
-    // 비밀번호 업데이트 (resetPassword와 동일한 기능이지만 명명 일관성을 위해 추가)
     @Transactional
     public void updatePassword(String email, String newPassword) {
         resetPassword(email, newPassword);
     }
 
+    private void validateRegistration(RegistrationDto requestDto) {
+        if (requestDto == null) {
+            throw new IllegalArgumentException("회원가입 정보가 없습니다.");
+        }
+        if (requestDto.getName() == null || requestDto.getName().trim().isEmpty()) {
+            throw new IllegalArgumentException("이름을 입력해 주세요.");
+        }
+        if (requestDto.getEmail() == null || requestDto.getEmail().trim().isEmpty()) {
+            throw new IllegalArgumentException("이메일을 입력해 주세요.");
+        }
+        if (requestDto.getPassword() == null || requestDto.getPassword().length() < 4) {
+            throw new IllegalArgumentException("비밀번호는 최소 4자 이상이어야 합니다.");
+        }
+    }
+
+    private void verifyEmailIfEnabled(RegistrationDto requestDto) {
+        if (!emailVerificationEnabled) {
+            return;
+        }
+
+        if (requestDto.getVerificationCode() == null || requestDto.getVerificationCode().trim().isEmpty()) {
+            throw new IllegalArgumentException("이메일 인증 코드를 입력해 주세요.");
+        }
+
+        EmailVerificationResult verificationResult = emailService.verifyEmailCodeWithDetails(
+                requestDto.getEmail(),
+                requestDto.getVerificationCode()
+        );
+
+        if (verificationResult == EmailVerificationResult.SUCCESS) {
+            return;
+        }
+        if (verificationResult == EmailVerificationResult.EXPIRED) {
+            throw new IllegalArgumentException("인증 코드가 만료되었습니다. 새 인증 코드를 요청해 주세요.");
+        }
+        if (verificationResult == EmailVerificationResult.INVALID_CODE) {
+            throw new IllegalArgumentException("인증 코드가 일치하지 않습니다.");
+        }
+        throw new IllegalArgumentException("이메일 인증에 실패했습니다.");
+    }
 }
