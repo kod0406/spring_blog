@@ -26,7 +26,21 @@
     <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
     <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
     <h1 class="h3 mb-3">회원 관리</h1>
+    <form class="row g-2 mb-3" method="get" action="/admin/users">
+        <div class="col-md-3">
+            <select class="form-select" name="status">
+                <option value="all" th:selected="${status == 'all'}">전체</option>
+                <option value="PENDING" th:selected="${status == 'PENDING'}">승인 대기</option>
+                <option value="ACTIVE" th:selected="${status == 'ACTIVE'}">활성</option>
+                <option value="REJECTED" th:selected="${status == 'REJECTED'}">거절</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-outline-primary w-100" type="submit">필터</button>
+        </div>
+    </form>
     <div class="bg-white border rounded p-3">
+        <div th:if="${users.size() == 0}" class="text-muted">회원이 없습니다.</div>
         <div th:each="member : ${users}" class="border-bottom py-3">
             <form th:action="@{/admin/users/{id}(id=${member.userId})}" method="post" class="row g-2 align-items-end">
                 <div class="col-md-3"><strong th:text="${member.email}">email</strong><div class="text-muted" th:text="${member.name}">name</div></div>
@@ -47,6 +61,14 @@
                 </div>
                 <div class="col-md-2"><button class="btn btn-outline-primary w-100" type="submit">저장</button></div>
             </form>
+            <div th:if="${member.status == 'PENDING'}" class="d-flex gap-2 mt-2">
+                <form th:action="@{/admin/users/{id}/approve(id=${member.userId})}" method="post">
+                    <button class="btn btn-success btn-sm" type="submit">승인</button>
+                </form>
+                <form th:action="@{/admin/users/{id}/reject(id=${member.userId})}" method="post">
+                    <button class="btn btn-outline-danger btn-sm" type="submit">거절</button>
+                </form>
+            </div>
         </div>
     </div>
 </main>

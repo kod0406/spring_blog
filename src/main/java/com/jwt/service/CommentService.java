@@ -4,6 +4,9 @@ import com.jwt.dto.CommentDto;
 import com.jwt.entity.Board;
 import com.jwt.entity.Comment;
 import com.jwt.entity.User;
+import com.jwt.exception.BadRequestException;
+import com.jwt.exception.ForbiddenException;
+import com.jwt.exception.NotFoundException;
 import com.jwt.repository.CommentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -34,9 +37,18 @@ public class CommentService {
 
     @Transactional(readOnly = true)
     public List<CommentDto.Response> getAllComments(User user) {
+        return getAllComments(user, null, null, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CommentDto.Response> getAllComments(User user, Long postId, String author, Boolean deleted, String keyword) {
         authorizationService.requireAdmin(user);
         return commentRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
+                .filter(comment -> matchesPost(comment, postId))
+                .filter(comment -> matchesAuthor(comment, author))
+                .filter(comment -> deleted == null || Boolean.TRUE.equals(comment.getDeleted()) == deleted)
+                .filter(comment -> matchesKeyword(comment, keyword))
                 .map(comment -> new CommentDto.Response(comment, depthOf(comment)))
                 .toList();
     }
@@ -59,7 +71,7 @@ public class CommentService {
         validateRequest(request);
 
         Comment parent = commentRepository.findById(parentCommentId)
-                .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("댓글을 찾을 수 없습니다."));
         Board post = boardService.getReadablePostEntity(parent.getPost().getBoardId(), user);
         requireCommentPermission(post, user);
 
@@ -75,11 +87,11 @@ public class CommentService {
     public void delete(Long commentId, User user) {
         authorizationService.requireActiveUser(user);
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("댓글을 찾을 수 없습니다."));
 
         boolean owner = comment.getAuthor().getUserId() == user.getUserId();
         if (!owner && !authorizationService.isAdmin(user)) {
-            throw new IllegalArgumentException("댓글 삭제 권한이 없습니다.");
+            throw new ForbiddenException("댓글 삭제 권한이 없습니다.");
         }
 
         softDelete(comment);
@@ -89,7 +101,7 @@ public class CommentService {
     public void adminDelete(Long commentId, User user) {
         authorizationService.requireAdmin(user);
         Comment comment = commentRepository.findById(commentId)
-                .orElseThrow(() -> new IllegalArgumentException("댓글을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("댓글을 찾을 수 없습니다."));
         softDelete(comment);
     }
 
@@ -120,7 +132,7 @@ public class CommentService {
     private void requireCommentPermission(Board post, User user) {
         if (!boardService.canComment(post, user)) {
             if (boardService.isPrivateCategory(post)) {
-                throw new IllegalArgumentException("글을 찾을 수 없습니다.");
+                throw new NotFoundException("글을 찾을 수 없습니다.");
             }
             authorizationService.requireActiveUser(user);
         }
@@ -133,11 +145,38 @@ public class CommentService {
 
     private void validateRequest(CommentDto.Request request) {
         if (request == null || request.getContent() == null || request.getContent().trim().isEmpty()) {
-            throw new IllegalArgumentException("댓글 내용을 입력해 주세요.");
+            throw new BadRequestException("댓글 내용을 입력해 주세요.");
         }
         if (request.getContent().trim().length() > 2000) {
-            throw new IllegalArgumentException("댓글은 2000자 이하로 입력해 주세요.");
+            throw new BadRequestException("댓글은 2000자 이하로 입력해 주세요.");
         }
+    }
+
+    private boolean matchesPost(Comment comment, Long postId) {
+        return postId == null || (comment.getPost() != null && comment.getPost().getBoardId() == postId);
+    }
+
+    private boolean matchesAuthor(Comment comment, String author) {
+        if (author == null || author.isBlank()) {
+            return true;
+        }
+        String needle = author.trim().toLowerCase();
+        User writer = comment.getAuthor();
+        return writer != null
+                && ((writer.getName() != null && writer.getName().toLowerCase().contains(needle))
+                || (writer.getEmail() != null && writer.getEmail().toLowerCase().contains(needle)));
+    }
+
+    private boolean matchesKeyword(Comment comment, String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return true;
+        }
+        String needle = keyword.trim().toLowerCase();
+        String content = comment.getContent() != null ? comment.getContent().toLowerCase() : "";
+        String title = comment.getPost() != null && comment.getPost().getTitle() != null
+                ? comment.getPost().getTitle().toLowerCase()
+                : "";
+        return content.contains(needle) || title.contains(needle);
     }
 
     private int depthOf(Comment comment) {

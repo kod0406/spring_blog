@@ -5,6 +5,8 @@ import com.jwt.entity.Board;
 import com.jwt.entity.Category;
 import com.jwt.entity.CategoryVisibility;
 import com.jwt.entity.User;
+import com.jwt.exception.BadRequestException;
+import com.jwt.exception.NotFoundException;
 import com.jwt.repository.BoardRepository;
 import com.jwt.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
@@ -39,9 +41,6 @@ public class BoardService {
 
     @Transactional(readOnly = true)
     public Page<BoardDto.Response> getPosts(String categoryKey, Pageable pageable, User viewer) {
-        if (authorizationService.isAdmin(viewer)) {
-            return getAdminPosts("all", categoryKey, pageable, viewer);
-        }
         return getPublicPosts(categoryKey, pageable);
     }
 
@@ -54,7 +53,7 @@ public class BoardService {
         Category category = categoryRepository.findByKey(categoryKey)
                 .filter(it -> Boolean.TRUE.equals(it.getActive()))
                 .filter(it -> it.getVisibility() == null || it.getVisibility() == CategoryVisibility.PUBLIC)
-                .orElseThrow(() -> new IllegalArgumentException("글머리를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("글머리를 찾을 수 없습니다."));
 
         return boardRepository.findPublicPostsByCategory(category, pageable).map(this::toResponse);
     }
@@ -97,7 +96,7 @@ public class BoardService {
         if (isPubliclyReadable(board)) {
             return board;
         }
-        throw new IllegalArgumentException("글을 찾을 수 없습니다.");
+        throw new NotFoundException("글을 찾을 수 없습니다.");
     }
 
     @Transactional(readOnly = true)
@@ -108,7 +107,7 @@ public class BoardService {
     @Transactional(readOnly = true)
     public Board getPostEntity(Long boardId) {
         return boardRepository.findById(boardId)
-                .orElseThrow(() -> new IllegalArgumentException("글을 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("글을 찾을 수 없습니다."));
     }
 
     @Transactional(readOnly = true)
@@ -167,7 +166,7 @@ public class BoardService {
 
         Category category = categoryRepository.findByKey(requestDto.getCategoryKey().trim())
                 .filter(it -> Boolean.TRUE.equals(it.getActive()))
-                .orElseThrow(() -> new IllegalArgumentException("글머리를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("글머리를 찾을 수 없습니다."));
         board.setCategory(category);
     }
 
@@ -184,6 +183,9 @@ public class BoardService {
         if ("unpublished".equalsIgnoreCase(visibility)) {
             return Boolean.FALSE.equals(board.getPublished());
         }
+        if ("uncategorized".equalsIgnoreCase(visibility)) {
+            return board.getCategory() == null;
+        }
         return true;
     }
 
@@ -196,14 +198,14 @@ public class BoardService {
 
     private void validateRequest(BoardDto.Request requestDto) {
         if (requestDto == null || requestDto.getTitle() == null || requestDto.getTitle().trim().isEmpty()) {
-            throw new IllegalArgumentException("제목을 입력해 주세요.");
+            throw new BadRequestException("제목을 입력해 주세요.");
         }
         String markdown = requestDto.getContentMarkdown() != null ? requestDto.getContentMarkdown() : requestDto.getContent();
         if (markdown == null || markdown.trim().isEmpty()) {
-            throw new IllegalArgumentException("내용을 입력해 주세요.");
+            throw new BadRequestException("내용을 입력해 주세요.");
         }
         if (requestDto.getTitle().trim().length() > 200) {
-            throw new IllegalArgumentException("제목은 200자 이하로 입력해 주세요.");
+            throw new BadRequestException("제목은 200자 이하로 입력해 주세요.");
         }
     }
 

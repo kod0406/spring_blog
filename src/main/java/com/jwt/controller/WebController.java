@@ -70,7 +70,7 @@ public class WebController {
 
         model.addAttribute("posts", posts);
         model.addAttribute("boards", posts);
-        model.addAttribute("categories", categoryService.getVisibleCategories(user));
+        model.addAttribute("categories", categoryService.getActiveCategories());
         model.addAttribute("selectedCategory", category);
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", posts.getTotalPages());

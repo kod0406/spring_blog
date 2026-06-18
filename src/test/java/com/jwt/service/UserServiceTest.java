@@ -8,6 +8,7 @@ import com.jwt.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,9 @@ class UserServiceTest {
     @Autowired
     UserRepository userRepository;
 
+    @Autowired
+    JdbcTemplate jdbcTemplate;
+
     @Test
     void adminAccountIsBootstrappedFromAdminSettings() {
         User admin = userRepository.findByEmail("admin@example.com");
@@ -39,6 +43,24 @@ class UserServiceTest {
         User user = new User();
         user.setRole("OWNER");
 
+        assertThat(user.getRoleEnum()).isEqualTo(UserRole.ADMIN);
+    }
+
+    @Test
+    void legacyOwnerRoleRowsAreNormalizedOnStartup() {
+        jdbcTemplate.execute("alter table users alter column role varchar(255)");
+        jdbcTemplate.update(
+                "insert into users (name, email, password, role, status) values (?, ?, ?, ?, ?)",
+                "Legacy Owner",
+                "legacy-owner@example.com",
+                "{noop}password",
+                "OWNER",
+                "ACTIVE"
+        );
+
+        userService.run(null);
+
+        User user = userRepository.findByEmail("legacy-owner@example.com");
         assertThat(user.getRoleEnum()).isEqualTo(UserRole.ADMIN);
     }
 

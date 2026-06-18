@@ -30,11 +30,7 @@ public class CategoryController {
 
     @GetMapping("/api/admin/categories")
     public ResponseEntity<ApiResponse<List<CategoryDto.Response>>> getAdminCategories(@AuthenticationPrincipal User user) {
-        try {
-            return ResponseEntity.ok(ApiResponse.ok(categoryService.getAllCategories(user)));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
+        return ResponseEntity.ok(ApiResponse.ok(categoryService.getAllCategories(user)));
     }
 
     @PostMapping("/api/admin/categories")
@@ -42,11 +38,7 @@ public class CategoryController {
             @RequestBody CategoryDto.Request request,
             @AuthenticationPrincipal User user
     ) {
-        try {
-            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("글머리가 생성되었습니다.", categoryService.create(request, user)));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("글머리가 생성되었습니다.", categoryService.create(request, user)));
     }
 
     @PutMapping("/api/admin/categories/{categoryId}")
@@ -55,11 +47,7 @@ public class CategoryController {
             @RequestBody CategoryDto.Request request,
             @AuthenticationPrincipal User user
     ) {
-        try {
-            return ResponseEntity.ok(ApiResponse.ok("글머리가 수정되었습니다.", categoryService.update(categoryId, request, user)));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
+        return ResponseEntity.ok(ApiResponse.ok("글머리가 수정되었습니다.", categoryService.update(categoryId, request, user)));
     }
 
     @DeleteMapping("/api/admin/categories/{categoryId}")
@@ -67,25 +55,7 @@ public class CategoryController {
             @PathVariable Long categoryId,
             @AuthenticationPrincipal User user
     ) {
-        try {
-            categoryService.delete(categoryId, user);
-            return ResponseEntity.ok(ApiResponse.ok("글머리가 삭제되었습니다."));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
-    private HttpStatus statusFor(IllegalArgumentException e) {
-        String message = e.getMessage();
-        if (message != null && message.contains("찾을 수 없습니다")) {
-            return HttpStatus.NOT_FOUND;
-        }
-        if (message != null && message.contains("로그인")) {
-            return HttpStatus.UNAUTHORIZED;
-        }
-        if (message != null && (message.contains("권한") || message.contains("승인"))) {
-            return HttpStatus.FORBIDDEN;
-        }
-        return HttpStatus.BAD_REQUEST;
+        categoryService.delete(categoryId, user);
+        return ResponseEntity.ok(ApiResponse.ok("글머리가 삭제되었습니다."));
     }
 }

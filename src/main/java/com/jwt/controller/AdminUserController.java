@@ -6,7 +6,6 @@ import com.jwt.entity.User;
 import com.jwt.service.AuthorizationService;
 import com.jwt.service.UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,41 +26,25 @@ public class AdminUserController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<UserAdminDto.Response>>> all(@AuthenticationPrincipal User user) {
-        try {
-            return ResponseEntity.ok(ApiResponse.ok(userService.getAllUsers(user).stream().map(UserAdminDto.Response::new).toList()));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
+        return ResponseEntity.ok(ApiResponse.ok(userService.getAllUsers(user).stream().map(UserAdminDto.Response::new).toList()));
     }
 
     @GetMapping("/pending")
     public ResponseEntity<ApiResponse<List<UserAdminDto.Response>>> pending(@AuthenticationPrincipal User user) {
-        try {
-            authorizationService.requireAdmin(user);
-            return ResponseEntity.ok(ApiResponse.ok(userService.getPendingUsers().stream().map(UserAdminDto.Response::new).toList()));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
+        authorizationService.requireAdmin(user);
+        return ResponseEntity.ok(ApiResponse.ok(userService.getPendingUsers().stream().map(UserAdminDto.Response::new).toList()));
     }
 
     @PostMapping("/{userId}/approve")
     public ResponseEntity<ApiResponse<UserAdminDto.Response>> approve(@PathVariable Long userId, @AuthenticationPrincipal User user) {
-        try {
-            authorizationService.requireAdmin(user);
-            return ResponseEntity.ok(ApiResponse.ok("회원이 승인되었습니다.", new UserAdminDto.Response(userService.approveUser(userId))));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
+        authorizationService.requireAdmin(user);
+        return ResponseEntity.ok(ApiResponse.ok("회원이 승인되었습니다.", new UserAdminDto.Response(userService.approveUser(userId))));
     }
 
     @PostMapping("/{userId}/reject")
     public ResponseEntity<ApiResponse<UserAdminDto.Response>> reject(@PathVariable Long userId, @AuthenticationPrincipal User user) {
-        try {
-            authorizationService.requireAdmin(user);
-            return ResponseEntity.ok(ApiResponse.ok("회원이 거절되었습니다.", new UserAdminDto.Response(userService.rejectUser(userId))));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
+        authorizationService.requireAdmin(user);
+        return ResponseEntity.ok(ApiResponse.ok("회원이 거절되었습니다.", new UserAdminDto.Response(userService.rejectUser(userId))));
     }
 
     @PostMapping("/{userId}")
@@ -71,21 +54,6 @@ public class AdminUserController {
             @RequestParam String status,
             @AuthenticationPrincipal User user
     ) {
-        try {
-            return ResponseEntity.ok(ApiResponse.ok("회원 정보가 수정되었습니다.", new UserAdminDto.Response(userService.updateAdminFields(userId, role, status, user))));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
-    private HttpStatus statusFor(IllegalArgumentException e) {
-        String message = e.getMessage();
-        if (message != null && message.contains("찾을 수 없습니다")) {
-            return HttpStatus.NOT_FOUND;
-        }
-        if (message != null && message.contains("로그인")) {
-            return HttpStatus.UNAUTHORIZED;
-        }
-        return HttpStatus.FORBIDDEN;
+        return ResponseEntity.ok(ApiResponse.ok("회원 정보가 수정되었습니다.", new UserAdminDto.Response(userService.updateAdminFields(userId, role, status, user))));
     }
 }

@@ -76,9 +76,20 @@ class CommentServiceTest {
         assertThatThrownBy(() -> commentService.create(post.getPostId(), comment("member"), member))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("글을 찾을 수 없습니다");
+        assertThatThrownBy(() -> commentService.getTree(post.getPostId(), member))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("글을 찾을 수 없습니다");
 
         CommentDto.Response adminComment = commentService.create(post.getPostId(), comment("admin"), admin);
+        assertThatThrownBy(() -> commentService.reply(adminComment.getCommentId(), comment("member reply"), member))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("글을 찾을 수 없습니다");
+
+        CommentDto.Response adminReply = commentService.reply(adminComment.getCommentId(), comment("admin reply"), admin);
+
         assertThat(adminComment.getContent()).isEqualTo("admin");
+        assertThat(adminReply.getContent()).isEqualTo("admin reply");
+        assertThat(commentService.getTree(post.getPostId(), admin)).hasSize(1);
     }
 
     private CategoryDto.Request category(String key, String displayName, CategoryVisibility visibility) {

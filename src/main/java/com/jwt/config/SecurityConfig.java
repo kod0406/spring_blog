@@ -54,7 +54,31 @@ public class SecurityConfig {
                         .authenticationEntryPoint((request, response, authException) -> response.sendError(401, "로그인이 필요합니다."))
                         .accessDeniedHandler((request, response, accessDeniedException) -> response.sendError(403, "접근 권한이 없습니다."))
                 )
-                .authorizeHttpRequests(authorize -> authorize.anyRequest().permitAll())
+                .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers(
+                                "/api/user/register",
+                                "/api/user/login",
+                                "/api/user/reset-password",
+                                "/api/user/reset-password/**"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/categories",
+                                "/api/posts",
+                                "/api/board",
+                                "/api/posts/*",
+                                "/api/board/*",
+                                "/api/posts/*/comments"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.POST,
+                                "/api/posts/*/comments",
+                                "/api/comments/*/replies",
+                                "/api/user/logout"
+                        ).authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/comments/*").authenticated()
+                        .anyRequest().authenticated()
+                )
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
@@ -93,7 +117,8 @@ public class SecurityConfig {
                                 "/signup/email"
                         ).permitAll()
                         .requestMatchers(HttpMethod.GET, "/posts", "/posts/{postId}", "/board", "/board/{postId}").permitAll()
-                        .requestMatchers("/admin/**", "/posts/write", "/board/write", "/posts/**/edit", "/board/**/edit", "/logout").authenticated()
+                        .requestMatchers("/admin/**", "/posts/write", "/board/write", "/posts/**/edit", "/board/**/edit").hasRole("ADMIN")
+                        .requestMatchers("/logout").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

@@ -86,6 +86,9 @@ class BoardServiceTest {
                 .doesNotContain(privatePost.getPostId());
         assertThat(boardService.getPosts(null, PageRequest.of(0, 10), admin).getContent())
                 .extracting(BoardDto.Response::getPostId)
+                .doesNotContain(privatePost.getPostId());
+        assertThat(boardService.getAdminPosts("all", null, PageRequest.of(0, 10), admin).getContent())
+                .extracting(BoardDto.Response::getPostId)
                 .contains(privatePost.getPostId());
         assertThatThrownBy(() -> boardService.getBoardById(privatePost.getPostId(), member))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -111,6 +114,9 @@ class BoardServiceTest {
                 .extracting(BoardDto.Response::getPostId)
                 .doesNotContain(post.getPostId());
         assertThat(boardService.getPosts(null, PageRequest.of(0, 10), admin).getContent())
+                .extracting(BoardDto.Response::getPostId)
+                .doesNotContain(post.getPostId());
+        assertThat(boardService.getAdminPosts("all", null, PageRequest.of(0, 10), admin).getContent())
                 .extracting(BoardDto.Response::getPostId)
                 .contains(post.getPostId());
     }

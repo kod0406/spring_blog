@@ -5,6 +5,8 @@ import com.jwt.emum.EmailVerificationResult;
 import com.jwt.entity.User;
 import com.jwt.entity.UserRole;
 import com.jwt.entity.UserStatus;
+import com.jwt.exception.ForbiddenException;
+import com.jwt.exception.NotFoundException;
 import com.jwt.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -166,12 +168,12 @@ public class UserService implements ApplicationRunner {
 
     private User getUser(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));
     }
 
     private void requireAdmin(User user) {
         if (user == null || user.getRoleEnum() != UserRole.ADMIN || user.getStatusEnum() != UserStatus.ACTIVE) {
-            throw new IllegalArgumentException("관리자 권한이 필요합니다.");
+            throw new ForbiddenException("관리자 권한이 필요합니다.");
         }
     }
 

@@ -1,193 +1,135 @@
-         # JWT 인증 시스템 - 동아리 세션 프로젝트
+# 1인 관리자 블로그
 
-Spring Boot 기반의 JWT(JSON Web Token) 인증 시스템 구현 프로젝트입니다.  
-회원가입, 로그인, 로그아웃, 게시판 CRUD 기능을 포함하며, 동아리 세션을 위한 학습용 템플릿을 제공합니다.
+Spring Boot, Thymeleaf, JWT 쿠키 인증을 사용하는 개인 관리자 블로그입니다. 관리자는 `ADMIN` 하나만 사용하고, 일반 회원은 관리자 승인 후 공개 글에 댓글과 답글을 작성할 수 있습니다.
 
-## 📋 목차
-- [프로젝트 개요](#-프로젝트-개요)
-- [기술 스택](#-기술-스택)
-- [주요 기능](#-주요-기능)
-- [프로젝트 구조](#-프로젝트-구조)
-- [프로젝트 실행 가이드](#-프로젝트-실행-가이드)
-- [환경 변수 설정](#-환경-변수-설정-applicationyml)
+## 주요 기능
 
+- 관리자 전용 글 작성, 수정, 삭제
+- 글머리 속성: `PUBLIC`, `PRIVATE`
+- `PUBLIC` 글머리 글과 미분류 공개 글은 공개 목록과 상세에 노출
+- `PRIVATE` 글머리 글은 관리자만 목록, 상세, 댓글 조회 가능
+- `published=false` 글은 관리자만 조회 가능
+- 승인된 `ACTIVE` 회원은 공개 글에 댓글과 답글 작성 가능
+- `PRIVATE` 글 댓글과 답글은 관리자만 작성 가능
+- 댓글 삭제는 소프트 삭제: row 유지, `deleted=true`, `content=""`, 응답 문구는 `삭제된 댓글입니다.`
+- 관리자 화면: 대시보드, 글 관리, 글머리 관리, 회원 승인/거절, 댓글 관리
+- 관리자 API는 SecurityConfig와 서비스 레이어에서 모두 ADMIN 권한 검증
 
-## 🎯 프로젝트 개요
+## 권한 모델
 
-이 프로젝트는 JWT 기반 인증 시스템을 학습하기 위한 동아리 세션용 템플릿입니다.  
-실제 구현이 필요한 부분은 TODO와 빈칸으로 남겨두어, 학습자가 직접 구현할 수 있도록 설계되었습니다.
+역할은 `ADMIN`, `USER`만 사용합니다.
 
-### 학습 목표
-- Spring Security와 JWT 토큰 기반 인증 이해
-- Redis를 활용한 Refresh Token 관리
-- RESTful API 설계 및 구현
-- 쿠키 기반 토큰 저장 및 관리
-- 비밀번호 암호화 (BCrypt)
+기존 DB에 `OWNER` role 값이 남아 있으면 앱 시작 시 `ADMIN`으로 정규화합니다. `OWNER_EMAIL`, `OWNER_PASSWORD`, `OWNER_NAME` 환경 변수는 하위 호환 fallback으로만 읽고, 신규 설정은 `ADMIN_*`를 사용합니다.
 
-## 🛠 기술 스택
+## 로컬 실행
 
-- **Backend**: Spring Boot 3.x, Spring Security 6.x
-- **Database**: MySQL, JPA/Hibernate
-- **Cache**: Redis (Refresh Token 저장)
-- **Template Engine**: Thymeleaf
-- **Authentication**: JWT (JSON Web Token)
-- **Password Encryption**: BCrypt
-- **Build Tool**: Gradle
+필수 조건:
 
-## ⚡ 주요 기능
+- JDK 17
+- Gradle Wrapper 사용
 
-### 인증 시스템
-- [x] 회원가입 (이메일 중복 검사)
-- [x] 로그인/로그아웃
-- [x] JWT Access Token + Refresh Token
-- [x] 비밀번호 재설정
+빌드:
 
-### 게시판 시스템
-- [x] 게시글 목록 조회 (페이징)
-- [x] 게시글 작성/수정/삭제
-- [x] 게시글 상세보기
-- [x] 작성자 권한 검증
-
-### 보안 기능
-- [x] 비밀번호 BCrypt 암호화
-- [x] JWT 토큰 쿠키 저장
-- [x] CORS 설정
-- [x] CSRF 비활성화 (JWT 사용)
-
-## 📁 프로젝트 구조
-
-```
-src/main/java/com/jwt/
-├── config/                 # 설정 클래스
-│   ├── SecurityConfig.java    # Spring Security 설정
-│   └── RedisConfig.java       # Redis 설정
-├── controller/             # 컨트롤러
-│   ├── WebController.java     # 웹 페이지 컨트롤러
-│   ├── UserController.java    # 사용자 API 컨트롤러
-│   └── BoardController.java   # 게시판 API 컨트롤러
-├── dto/                    # 데이터 전송 객체
-│   ├── RegistrationDto.java
-│   ├── loginDto.java
-│   └── BoardDto.java
-├── entity/                 # JPA 엔티티
-│   ├── User.java
-│   └── Board.java
-├── jwt/                    # JWT 관련 클래스
-│   ├── JwtTokenProvider.java  # JWT 토큰 생성/검증
-│   ├── JwtAuthenticationFilter.java # JWT 인증 필터
-│   └── JwtCookieUtil.java     # JWT 쿠키 유틸리티
-├── redis/                  # Redis 관련 클래스
-│   └── TokenRedisService.java # 토큰 Redis 서비스
-├── repository/             # JPA 리포지토리
-│   ├── UserRepository.java
-│   └── BoardRepository.java
-└── service/                # 비즈니스 로직
-    ├── UserService.java
-    └── BoardService.java
+```bash
+./gradlew build
 ```
 
-## 🚀 프로젝트 실행 가이드
+Windows에서 JDK 경로를 직접 지정해야 하는 경우:
 
-### 시스템 요구사항
+```powershell
+& 'C:\Program Files\Java\jdk-17\bin\java.exe' -classpath 'gradle\wrapper\gradle-wrapper.jar' org.gradle.wrapper.GradleWrapperMain build
+```
 
-* **JDK**: 17 이상
-* **Gradle**: 7.x 이상
+실행 예시:
 
----
+```bash
+ADMIN_EMAIL=admin@example.com \
+ADMIN_PASSWORD=change-me \
+ADMIN_NAME=Admin \
+./gradlew bootRun
+```
 
-### 실행 방법
+기본 서버 포트는 `8080`입니다.
 
-#### 1. 프로젝트 클론 및 설정
+## 관리자 Bootstrap
 
-1. 프로젝트 클론:
+앱 시작 시 `ADMIN` 계정이 없고 아래 값이 설정되어 있으면 관리자 계정을 자동 생성합니다.
 
-   ```bash
-   git clone https://github.com/your-username/jwt-auth-project.git
-   cd jwt-auth-project
-   ```
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `ADMIN_NAME`
 
-2. 환경 설정 파일 작성:
-   - `src/main/resources/application.yml` 파일을 생성하거나 수정합니다.
-   - 아래 "환경 변수 설정" 섹션을 참고하여 값을 입력하세요.
+하위 호환:
 
-#### IDE에서 실행 (IntelliJ IDEA)
+- `OWNER_EMAIL`
+- `OWNER_PASSWORD`
+- `OWNER_NAME`
 
-1. IntelliJ IDEA에서 프로젝트 열기
-2. Gradle 프로젝트로 임포트
-3. 메인 애플리케이션 클래스 (`JwtApplication.java`) 실행
+`ADMIN_*` 값이 우선이며, 비어 있을 때만 `OWNER_*`를 fallback으로 사용합니다.
 
----
+## 데이터베이스
 
-## ⚙️ 환경 변수 설정 (`application.yml`)
-
-백엔드 프로젝트의 `src/main/resources/` 경로에 `application.yml` 파일을 생성하고, 아래 예시를 참고하여 환경에 맞는 설정값을 입력해야 합니다.
-
-<details>
-<summary><strong>전체 환경 변수 예시 및 설명 보기</strong></summary>
+기본값은 로컬 H2 파일 DB입니다.
 
 ```yaml
-spring:
-  application:
-    name: JWT
-
-  security:
-    user:
-      name: user                    # 기본 보안 사용자명
-      password: 1234                # 기본 보안 비밀번호
-
-  thymeleaf:
-    cache: false                    # 개발 시 템플릿 캐시 비활성화
-
-  jpa:
-    hibernate:
-      ddl-auto: update              # 테이블 자동 생성/업데이트 (create, update, validate, create-drop)
-
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://[RDS_ENDPOINT]/[RDS_TABLE_NAME]?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&createDatabaseIfNotExist=true
-    username: [DB_USERNAME]         # 데이터베이스 사용자명
-    password: [DB_PASSWORD]         # 데이터베이스 비밀번호
-
-  data:
-    redis:
-      host: [REDIS_HOST]            # Redis 서버 주소
-      port: 6379
-      password: [REDIS_PASSWORD]    # Redis 비밀번호
-      repositories:
-        enabled: false
-        
-    mail:
-    host: smtp.gmail.com
-    port: 587
-    username: [GMAIL_USERNAME]         # Gmail 계정
-    password: [GMAIL_APP_PASSWORD]     # Gmail 앱 비밀번호
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-          ssl:
-
-server:
-  port: 8080                        # 서버 포트
-
-jwt:
-  secret: [JWT_SECRET_KEY]          # JWT 서명용 비밀키 (최소 32자 이상)
-  refresh-Millis: 21600000          # 리프레시 토큰 만료시간 (밀리초)
-  expiration-Millis: 300000         # 액세스 토큰 만료시간 (밀리초)
-  access-cookie-name: jwt_token     # 액세스 토큰 쿠키명
-  refresh-cookie-name: jwt_refresh_token # 리프레시 토큰 쿠키명
+DB_DRIVER=org.h2.Driver
+DB_URL=jdbc:h2:file:./data/jwt-blog;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+DB_USERNAME=sa
+DB_PASSWORD=
 ```
-</details>
 
-### 설정값 변경 가이드
+MySQL을 사용할 때는 다음 값을 환경 변수로 지정합니다.
 
-1. **`[RDS_ENDPOINT]`**: AWS RDS MySQL 인스턴스의 엔드포인트를 입력
-2. **`[DB_USERNAME]`, `[DB_PASSWORD]`**: 데이터베이스 접속 계정 정보
-3. **`[REDIS_HOST]`, `[REDIS_PASSWORD]`**: Redis 서버 주소 및 비밀번호
-4. **`[JWT_SECRET_KEY]`**: JWT 토큰 서명용 비밀키 (최소 32자 이상)
-5. **`[GMAIL_USERNAME]`**: 인증 메일 발송에 사용할 Gmail 주소
-6. **`[GMAIL_APP_PASSWORD]`**: Gmail 앱 비밀번호(2단계 인증 후 발급, 일반 비밀번호 아님)
+```bash
+DB_DRIVER=com.mysql.cj.jdbc.Driver
+DB_URL=jdbc:mysql://localhost:3306/jwt_blog?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+DB_USERNAME=...
+DB_PASSWORD=...
+JPA_DIALECT=org.hibernate.dialect.MySQLDialect
+```
 
----
+## Redis
+
+Redis는 refresh token 저장소로 사용됩니다. 로컬 Redis가 없거나 연결에 실패하면 `TokenRedisService`가 인메모리 fallback으로 동작합니다. 운영 환경에서는 Redis 연결을 명확히 설정하는 것을 권장합니다.
+
+```bash
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+```
+
+## 파일 업로드와 OCI
+
+이미지와 영상 업로드 API는 관리자 전용으로 준비되어 있습니다. 현재 OCI Object Storage 실제 SDK 인증키 연결은 이 작업 범위에 포함하지 않았습니다.
+
+`OCI_OBJECT_STORAGE_ENABLED=false`가 기본값이며, 이 상태에서는 로컬 fallback URL을 사용합니다. 실제 OCI 연동에는 별도 SDK 설정, 인증키, 버킷 권한 구성이 필요합니다.
+
+## 주요 경로
+
+- `/posts`: 공개 글 목록
+- `/posts/{id}`: 글 상세
+- `/admin`: 관리자 대시보드
+- `/admin/posts`: 관리자 글 관리
+- `/admin/categories`: 글머리 관리
+- `/admin/users`: 회원 관리
+- `/admin/comments`: 댓글 관리
+- `/api/posts`: 공개 글 API
+- `/api/categories`: 공개 글머리 API
+- `/api/admin/**`: 관리자 API
+
+## 테스트
+
+```bash
+./gradlew build
+```
+
+주요 테스트 범위:
+
+- ADMIN bootstrap과 legacy OWNER 정규화
+- ADMIN/USER 권한 분리
+- PUBLIC/PRIVATE 글머리 노출 정책
+- PRIVATE 글과 `published=false` 글 접근 제어
+- 공개/개인 글 댓글 권한
+- 댓글 소프트 삭제와 대댓글 tree 유지
+- 관리자 API 401/403/200 보안 정책
+- 주요 Java/Thymeleaf/README 파일의 깨진 한글 문자열 마커 검사

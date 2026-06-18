@@ -37,11 +37,7 @@ public class BoardController {
 
     @GetMapping({"/api/posts/{postId}", "/api/board/{postId}"})
     public ResponseEntity<ApiResponse<BoardDto.Response>> getPost(@PathVariable Long postId, @AuthenticationPrincipal User user) {
-        try {
-            return ResponseEntity.ok(ApiResponse.ok(boardService.getBoardById(postId, user)));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error(e.getMessage()));
-        }
+        return ResponseEntity.ok(ApiResponse.ok(boardService.getBoardById(postId, user)));
     }
 
     @GetMapping("/api/admin/posts")
@@ -51,11 +47,7 @@ public class BoardController {
             @PageableDefault(size = 20) Pageable pageable,
             @AuthenticationPrincipal User user
     ) {
-        try {
-            return ResponseEntity.ok(ApiResponse.ok(boardService.getAdminPosts(visibility, category, pageable, user)));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
+        return ResponseEntity.ok(ApiResponse.ok(boardService.getAdminPosts(visibility, category, pageable, user)));
     }
 
     @PostMapping("/api/admin/posts")
@@ -63,12 +55,8 @@ public class BoardController {
             @RequestBody BoardDto.Request requestDto,
             @AuthenticationPrincipal User user
     ) {
-        try {
-            BoardDto.Response responseDto = boardService.createBoard(requestDto, user);
-            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("글이 작성되었습니다.", responseDto));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
+        BoardDto.Response responseDto = boardService.createBoard(requestDto, user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("글이 작성되었습니다.", responseDto));
     }
 
     @PutMapping("/api/admin/posts/{postId}")
@@ -77,11 +65,7 @@ public class BoardController {
             @RequestBody BoardDto.Request requestDto,
             @AuthenticationPrincipal User user
     ) {
-        try {
-            return ResponseEntity.ok(ApiResponse.ok("글이 수정되었습니다.", boardService.updateBoard(postId, requestDto, user)));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
+        return ResponseEntity.ok(ApiResponse.ok("글이 수정되었습니다.", boardService.updateBoard(postId, requestDto, user)));
     }
 
     @DeleteMapping("/api/admin/posts/{postId}")
@@ -89,25 +73,7 @@ public class BoardController {
             @PathVariable Long postId,
             @AuthenticationPrincipal User user
     ) {
-        try {
-            boardService.deleteBoard(postId, user);
-            return ResponseEntity.ok(ApiResponse.ok("글이 삭제되었습니다."));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(statusFor(e)).body(ApiResponse.error(e.getMessage()));
-        }
-    }
-
-    private HttpStatus statusFor(IllegalArgumentException e) {
-        String message = e.getMessage();
-        if (message != null && message.contains("찾을 수 없습니다")) {
-            return HttpStatus.NOT_FOUND;
-        }
-        if (message != null && message.contains("로그인")) {
-            return HttpStatus.UNAUTHORIZED;
-        }
-        if (message != null && (message.contains("권한") || message.contains("승인"))) {
-            return HttpStatus.FORBIDDEN;
-        }
-        return HttpStatus.BAD_REQUEST;
+        boardService.deleteBoard(postId, user);
+        return ResponseEntity.ok(ApiResponse.ok("글이 삭제되었습니다."));
     }
 }

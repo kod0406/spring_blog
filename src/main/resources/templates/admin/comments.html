@@ -26,6 +26,27 @@
     <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
     <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
     <h1 class="h3 mb-3">댓글 관리</h1>
+    <form class="row g-2 mb-3" method="get" action="/admin/comments">
+        <div class="col-md-2">
+            <input class="form-control" type="number" name="postId" th:value="${postId}" placeholder="글 ID">
+        </div>
+        <div class="col-md-2">
+            <input class="form-control" name="author" th:value="${author}" placeholder="작성자">
+        </div>
+        <div class="col-md-2">
+            <select class="form-select" name="deleted">
+                <option value="" th:selected="${deleted == null}">삭제 여부 전체</option>
+                <option value="false" th:selected="${deleted == false}">일반 댓글</option>
+                <option value="true" th:selected="${deleted == true}">삭제된 댓글</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <input class="form-control" name="keyword" th:value="${keyword}" placeholder="키워드">
+        </div>
+        <div class="col-md-2">
+            <button class="btn btn-outline-primary w-100" type="submit">필터</button>
+        </div>
+    </form>
     <div class="bg-white border rounded p-3">
         <div th:if="${comments.size() == 0}" class="text-muted">댓글이 없습니다.</div>
         <div th:each="comment : ${comments}" class="border-bottom py-3">

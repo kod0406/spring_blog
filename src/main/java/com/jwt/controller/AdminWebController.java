@@ -110,11 +110,17 @@ public class AdminWebController {
     }
 
     @GetMapping("/admin/users")
-    public String users(@AuthenticationPrincipal User user, Model model, RedirectAttributes redirectAttributes) {
+    public String users(@RequestParam(defaultValue = "all") String status,
+                        @AuthenticationPrincipal User user,
+                        Model model,
+                        RedirectAttributes redirectAttributes) {
         if (!requireAdmin(user, redirectAttributes)) {
             return "redirect:/login";
         }
-        model.addAttribute("users", userService.getAllUsers(user));
+        model.addAttribute("users", userService.getAllUsers(user).stream()
+                .filter(member -> "all".equalsIgnoreCase(status) || status.equalsIgnoreCase(member.getStatus()))
+                .toList());
+        model.addAttribute("status", status);
         return "admin/users";
     }
 
@@ -133,12 +139,50 @@ public class AdminWebController {
         return "redirect:/admin/users";
     }
 
+    @PostMapping("/admin/users/{userId}/approve")
+    public String approveUser(@PathVariable Long userId,
+                              @AuthenticationPrincipal User user,
+                              RedirectAttributes redirectAttributes) {
+        try {
+            authorizationService.requireAdmin(user);
+            userService.approveUser(userId);
+            redirectAttributes.addFlashAttribute("message", "회원이 승인되었습니다.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/admin/users";
+    }
+
+    @PostMapping("/admin/users/{userId}/reject")
+    public String rejectUser(@PathVariable Long userId,
+                             @AuthenticationPrincipal User user,
+                             RedirectAttributes redirectAttributes) {
+        try {
+            authorizationService.requireAdmin(user);
+            userService.rejectUser(userId);
+            redirectAttributes.addFlashAttribute("message", "회원이 거절되었습니다.");
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/admin/users";
+    }
+
     @GetMapping("/admin/comments")
-    public String comments(@AuthenticationPrincipal User user, Model model, RedirectAttributes redirectAttributes) {
+    public String comments(@RequestParam(required = false) Long postId,
+                           @RequestParam(required = false) String author,
+                           @RequestParam(required = false) Boolean deleted,
+                           @RequestParam(required = false) String keyword,
+                           @AuthenticationPrincipal User user,
+                           Model model,
+                           RedirectAttributes redirectAttributes) {
         if (!requireAdmin(user, redirectAttributes)) {
             return "redirect:/login";
         }
-        model.addAttribute("comments", commentService.getAllComments(user));
+        model.addAttribute("comments", commentService.getAllComments(user, postId, author, deleted, keyword));
+        model.addAttribute("postId", postId);
+        model.addAttribute("author", author);
+        model.addAttribute("deleted", deleted);
+        model.addAttribute("keyword", keyword);
         return "admin/comments";
     }
 

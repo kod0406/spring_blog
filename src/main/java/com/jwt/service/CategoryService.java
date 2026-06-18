@@ -4,6 +4,8 @@ import com.jwt.dto.CategoryDto;
 import com.jwt.entity.Category;
 import com.jwt.entity.CategoryVisibility;
 import com.jwt.entity.User;
+import com.jwt.exception.BadRequestException;
+import com.jwt.exception.NotFoundException;
 import com.jwt.repository.BoardRepository;
 import com.jwt.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
@@ -49,7 +51,7 @@ public class CategoryService {
     public Category findActiveByKey(String key) {
         return categoryRepository.findByKey(key)
                 .filter(category -> Boolean.TRUE.equals(category.getActive()))
-                .orElseThrow(() -> new IllegalArgumentException("글머리를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("글머리를 찾을 수 없습니다."));
     }
 
     @Transactional(readOnly = true)
@@ -57,7 +59,7 @@ public class CategoryService {
         return categoryRepository.findByKey(key)
                 .filter(category -> Boolean.TRUE.equals(category.getActive()))
                 .filter(category -> category.getVisibility() == null || category.getVisibility() == CategoryVisibility.PUBLIC)
-                .orElseThrow(() -> new IllegalArgumentException("글머리를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("글머리를 찾을 수 없습니다."));
     }
 
     @Transactional
@@ -67,7 +69,7 @@ public class CategoryService {
 
         String key = request.getKey().trim();
         if (categoryRepository.existsByKey(key)) {
-            throw new IllegalArgumentException("이미 존재하는 글머리 key입니다.");
+            throw new BadRequestException("이미 존재하는 글머리 key입니다.");
         }
 
         Category category = new Category();
@@ -80,7 +82,7 @@ public class CategoryService {
     public CategoryDto.Response update(Long categoryId, CategoryDto.Request request, User user) {
         authorizationService.requireAdmin(user);
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("글머리를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("글머리를 찾을 수 없습니다."));
 
         applyMutableFields(category, request);
         return new CategoryDto.Response(category);
@@ -90,23 +92,21 @@ public class CategoryService {
     public void delete(Long categoryId, User user) {
         authorizationService.requireAdmin(user);
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new IllegalArgumentException("글머리를 찾을 수 없습니다."));
+                .orElseThrow(() -> new NotFoundException("글머리를 찾을 수 없습니다."));
 
-        boardRepository.findAll().stream()
-                .filter(board -> board.getCategory() != null && board.getCategory().getCategoryId().equals(categoryId))
-                .forEach(board -> board.setCategory(null));
+        boardRepository.clearCategory(category);
         categoryRepository.delete(category);
     }
 
     private void validateCreateRequest(CategoryDto.Request request) {
         if (request == null || request.getKey() == null || request.getKey().trim().isEmpty()) {
-            throw new IllegalArgumentException("글머리 key를 입력해 주세요.");
+            throw new BadRequestException("글머리 key를 입력해 주세요.");
         }
         if (!request.getKey().matches("[a-z0-9][a-z0-9-]{1,78}[a-z0-9]")) {
-            throw new IllegalArgumentException("글머리 key는 영문 소문자, 숫자, 하이픈만 사용할 수 있습니다.");
+            throw new BadRequestException("글머리 key는 영문 소문자, 숫자, 하이픈만 사용할 수 있습니다.");
         }
         if (request.getDisplayName() == null || request.getDisplayName().trim().isEmpty()) {
-            throw new IllegalArgumentException("표시 이름을 입력해 주세요.");
+            throw new BadRequestException("표시 이름을 입력해 주세요.");
         }
     }
 
