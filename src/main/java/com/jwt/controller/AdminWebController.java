@@ -44,6 +44,9 @@ public class AdminWebController {
     @GetMapping("/admin/posts")
     public String posts(@RequestParam(defaultValue = "all") String visibility,
                         @RequestParam(required = false) String category,
+                        @RequestParam(required = false) String keyword,
+                        @RequestParam(required = false) String searchType,
+                        @RequestParam(required = false) String sort,
                         @RequestParam(defaultValue = "0") int page,
                         @AuthenticationPrincipal User user,
                         Model model,
@@ -51,11 +54,23 @@ public class AdminWebController {
         if (!requireAdmin(user, redirectAttributes)) {
             return "redirect:/login";
         }
-        model.addAttribute("posts", boardService.getAdminPosts(visibility, category, PageRequest.of(page, 20, Sort.by("createdAt").descending()), user));
+        int resolvedPage = Math.max(page, 0);
+        model.addAttribute("posts", boardService.getAdminPosts(
+                visibility,
+                category,
+                keyword,
+                searchType,
+                sort,
+                PageRequest.of(resolvedPage, 20, Sort.by("createdAt").descending()),
+                user
+        ));
         model.addAttribute("categories", categoryService.getAllCategories(user));
         model.addAttribute("visibility", visibility);
         model.addAttribute("selectedCategory", category);
-        model.addAttribute("currentPage", page);
+        model.addAttribute("keyword", keyword);
+        model.addAttribute("searchType", searchType == null || searchType.isBlank() ? "title_content" : searchType);
+        model.addAttribute("sort", sort == null || sort.isBlank() ? "latest" : sort);
+        model.addAttribute("currentPage", resolvedPage);
         return "admin/posts";
     }
 

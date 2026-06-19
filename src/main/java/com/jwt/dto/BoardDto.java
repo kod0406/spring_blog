@@ -31,6 +31,7 @@ public class BoardDto {
     public static class Response {
         private final Long postId;
         private final String title;
+        private final String displayTitle;
         private final String content;
         private final String renderedContent;
         private final String categoryKey;
@@ -38,6 +39,8 @@ public class BoardDto {
         private final CategoryVisibility categoryVisibility;
         private final Boolean privatePost;
         private final Boolean published;
+        private final Boolean masked;
+        private final Boolean readable;
         private final Long authorId;
         private final String authorName;
         private final LocalDateTime createdAt;
@@ -48,8 +51,33 @@ public class BoardDto {
         }
 
         public Response(Board board, String renderedContent) {
+            this(board, renderedContent, false);
+        }
+
+        private Response(Board board, String renderedContent, boolean masked) {
             this.postId = board.getBoardId();
+            this.masked = masked;
+            this.readable = !masked;
+
+            if (masked) {
+                this.title = "(권한 없음)";
+                this.displayTitle = "(권한 없음)";
+                this.content = null;
+                this.renderedContent = null;
+                this.categoryKey = null;
+                this.categoryDisplayName = null;
+                this.categoryVisibility = null;
+                this.privatePost = true;
+                this.published = true;
+                this.authorId = null;
+                this.authorName = null;
+                this.createdAt = null;
+                this.updatedAt = null;
+                return;
+            }
+
             this.title = board.getTitle();
+            this.displayTitle = board.getTitle();
             this.content = board.getContentMarkdown() != null ? board.getContentMarkdown() : board.getContent();
             this.renderedContent = renderedContent;
             this.categoryKey = board.getCategory() != null ? board.getCategory().getKey() : null;
@@ -63,6 +91,10 @@ public class BoardDto {
             this.authorName = board.getUser() != null ? board.getUser().getName() : null;
             this.createdAt = board.getCreatedAt();
             this.updatedAt = board.getUpdatedAt();
+        }
+
+        public static Response masked(Board board) {
+            return new Response(board, null, true);
         }
 
         public Long getBoardId() {

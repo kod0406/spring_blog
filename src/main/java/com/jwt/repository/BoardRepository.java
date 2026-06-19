@@ -7,9 +7,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.query.Param;
 
-public interface BoardRepository extends JpaRepository<Board, Long> {
+public interface BoardRepository extends JpaRepository<Board, Long>, JpaSpecificationExecutor<Board> {
     Page<Board> findAllByOrderByCreatedAtDesc(Pageable pageable);
 
     @Query("select b from Board b where (b.published = true or b.published is null) and (b.category is null or b.category.visibility is null or b.category.visibility = com.jwt.entity.CategoryVisibility.PUBLIC) order by b.createdAt desc")

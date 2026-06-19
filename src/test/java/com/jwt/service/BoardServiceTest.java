@@ -2,6 +2,7 @@ package com.jwt.service;
 
 import com.jwt.dto.BoardDto;
 import com.jwt.dto.CategoryDto;
+import com.jwt.dto.CommentDto;
 import com.jwt.entity.CategoryVisibility;
 import com.jwt.entity.User;
 import com.jwt.entity.UserRole;
@@ -14,6 +15,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,6 +31,9 @@ class BoardServiceTest {
 
     @Autowired
     CategoryService categoryService;
+
+    @Autowired
+    CommentService commentService;
 
     @Autowired
     BoardRepository boardRepository;
@@ -80,13 +86,26 @@ class BoardServiceTest {
         privateRequest.setCategoryKey(privateCategory.getKey());
         BoardDto.Response privatePost = boardService.createBoard(privateRequest, admin);
 
-        assertThat(boardService.getPublicPosts(null, PageRequest.of(0, 10)).getContent())
-                .extracting(BoardDto.Response::getPostId)
-                .contains(publicPost.getPostId())
-                .doesNotContain(privatePost.getPostId());
+        assertThat(boardService.getPosts(null, PageRequest.of(0, 10), member).getContent())
+                .anySatisfy(response -> {
+                    assertThat(response.getPostId()).isEqualTo(publicPost.getPostId());
+                    assertThat(response.getMasked()).isFalse();
+                    assertThat(response.getReadable()).isTrue();
+                })
+                .anySatisfy(response -> {
+                    assertThat(response.getPostId()).isEqualTo(privatePost.getPostId());
+                    assertThat(response.getMasked()).isTrue();
+                    assertThat(response.getReadable()).isFalse();
+                    assertThat(response.getTitle()).isEqualTo("(권한 없음)");
+                    assertThat(response.getAuthorName()).isNull();
+                    assertThat(response.getCreatedAt()).isNull();
+                });
         assertThat(boardService.getPosts(null, PageRequest.of(0, 10), admin).getContent())
-                .extracting(BoardDto.Response::getPostId)
-                .doesNotContain(privatePost.getPostId());
+                .anySatisfy(response -> {
+                    assertThat(response.getPostId()).isEqualTo(privatePost.getPostId());
+                    assertThat(response.getMasked()).isFalse();
+                    assertThat(response.getTitle()).isEqualTo("개인 글");
+                });
         assertThat(boardService.getAdminPosts("all", null, PageRequest.of(0, 10), admin).getContent())
                 .extracting(BoardDto.Response::getPostId)
                 .contains(privatePost.getPostId());
@@ -110,12 +129,16 @@ class BoardServiceTest {
         CategoryDto.Request update = category(category.getKey(), "전환", CategoryVisibility.PRIVATE);
         categoryService.update(category.getCategoryId(), update, admin);
 
-        assertThat(boardService.getPublicPosts(null, PageRequest.of(0, 10)).getContent())
-                .extracting(BoardDto.Response::getPostId)
-                .doesNotContain(post.getPostId());
+        assertThat(boardService.getPosts(null, PageRequest.of(0, 10), null).getContent())
+                .anySatisfy(response -> {
+                    assertThat(response.getPostId()).isEqualTo(post.getPostId());
+                    assertThat(response.getMasked()).isTrue();
+                });
         assertThat(boardService.getPosts(null, PageRequest.of(0, 10), admin).getContent())
-                .extracting(BoardDto.Response::getPostId)
-                .doesNotContain(post.getPostId());
+                .anySatisfy(response -> {
+                    assertThat(response.getPostId()).isEqualTo(post.getPostId());
+                    assertThat(response.getMasked()).isFalse();
+                });
         assertThat(boardService.getAdminPosts("all", null, PageRequest.of(0, 10), admin).getContent())
                 .extracting(BoardDto.Response::getPostId)
                 .contains(post.getPostId());
@@ -156,12 +179,75 @@ class BoardServiceTest {
         assertThat(uncategorized.getCategoryDisplayName()).isEqualTo("미분류");
     }
 
+    @Test
+    void searchSupportsKeywordCategoryAuthorAndCommentWithPrivateMasking() {
+        User admin = userRepository.save(user("search-admin@example.com", "Admin Writer", UserRole.ADMIN, UserStatus.ACTIVE));
+        User member = userRepository.save(user("search-member@example.com", "Member Writer", UserRole.USER, UserStatus.ACTIVE));
+        CategoryDto.Response publicCategory = categoryService.create(category("search-public", "공지", CategoryVisibility.PUBLIC), admin);
+        CategoryDto.Response privateCategory = categoryService.create(category("search-private", "개인", CategoryVisibility.PRIVATE), admin);
+
+        BoardDto.Request publicRequest = new BoardDto.Request("Java 공개 글", "검색 본문");
+        publicRequest.setCategoryKey(publicCategory.getKey());
+        BoardDto.Response publicPost = boardService.createBoard(publicRequest, admin);
+
+        BoardDto.Request privateRequest = new BoardDto.Request("Java 개인 글", "숨긴 본문");
+        privateRequest.setCategoryKey(privateCategory.getKey());
+        BoardDto.Response privatePost = boardService.createBoard(privateRequest, admin);
+
+        commentService.create(publicPost.getPostId(), comment("needle 공개 댓글"), member);
+        commentService.create(privatePost.getPostId(), comment("needle 개인 댓글"), admin);
+
+        assertThat(boardService.getPosts(publicCategory.getKey(), "java", "title", "latest", PageRequest.of(0, 10), member).getContent())
+                .extracting(BoardDto.Response::getPostId)
+                .containsExactly(publicPost.getPostId());
+        assertThat(boardService.getPosts(null, "admin writer", "author", "latest", PageRequest.of(0, 10), member).getContent())
+                .extracting(BoardDto.Response::getPostId)
+                .contains(publicPost.getPostId(), privatePost.getPostId());
+
+        List<BoardDto.Response> publicCommentSearch = boardService.getPosts(null, "needle", "comment", "latest", PageRequest.of(0, 10), member).getContent();
+        assertThat(publicCommentSearch)
+                .anySatisfy(response -> {
+                    assertThat(response.getPostId()).isEqualTo(publicPost.getPostId());
+                    assertThat(response.getMasked()).isFalse();
+                })
+                .anySatisfy(response -> {
+                    assertThat(response.getPostId()).isEqualTo(privatePost.getPostId());
+                    assertThat(response.getMasked()).isTrue();
+                });
+
+        assertThat(boardService.getPosts(null, "needle", "comment", "latest", PageRequest.of(0, 10), admin).getContent())
+                .anySatisfy(response -> {
+                    assertThat(response.getPostId()).isEqualTo(privatePost.getPostId());
+                    assertThat(response.getMasked()).isFalse();
+                });
+    }
+
+    @Test
+    void deletedCommentsAreExcludedFromCommentSearch() {
+        User admin = userRepository.save(user("deleted-comment-admin@example.com", "Admin", UserRole.ADMIN, UserStatus.ACTIVE));
+        User member = userRepository.save(user("deleted-comment-member@example.com", "Member", UserRole.USER, UserStatus.ACTIVE));
+        BoardDto.Response post = boardService.createBoard(new BoardDto.Request("댓글 검색 글", "본문"), admin);
+
+        CommentDto.Response comment = commentService.create(post.getPostId(), comment("deletedneedle"), member);
+        commentService.delete(comment.getCommentId(), member);
+
+        assertThat(boardService.getPosts(null, "deletedneedle", "comment", "latest", PageRequest.of(0, 10), member).getContent())
+                .extracting(BoardDto.Response::getPostId)
+                .doesNotContain(post.getPostId());
+    }
+
     private CategoryDto.Request category(String key, String displayName, CategoryVisibility visibility) {
         CategoryDto.Request request = new CategoryDto.Request();
         request.setKey(key);
         request.setDisplayName(displayName);
         request.setActive(true);
         request.setVisibility(visibility);
+        return request;
+    }
+
+    private CommentDto.Request comment(String content) {
+        CommentDto.Request request = new CommentDto.Request();
+        request.setContent(content);
         return request;
     }
 

@@ -37,16 +37,22 @@
         </div>
     </section>
     <section th:if="${posts.size() > 0}">
-        <article class="card mb-3" th:each="post : ${posts}">
+        <article class="card mb-3" th:each="post, iter : ${posts}">
             <div class="card-body">
-                <div class="small text-muted mb-1" th:text="${post.categoryDisplayName}">미분류</div>
-                <h2 class="h5"><a class="post-title" th:href="@{/posts/{id}(id=${post.postId})}" th:text="${post.title}">제목</a></h2>
-                <p class="text-muted mb-2" th:text="${#strings.abbreviate(post.content, 140)}">요약</p>
-                <small class="text-muted">
-                    <span th:text="${post.authorName}">작성자</span>
-                    ·
-                    <span th:text="${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}">작성일</span>
-                </small>
+                <div th:if="${post.masked}" class="text-muted fst-italic">
+                    <span th:text="${iter.index + 1}">1</span>
+                    <span class="ms-2">(권한 없음)</span>
+                </div>
+                <div th:unless="${post.masked}">
+                    <div class="small text-muted mb-1" th:text="${post.categoryDisplayName}">미분류</div>
+                    <h2 class="h5"><a class="post-title" th:href="@{/posts/{id}(id=${post.postId})}" th:text="${post.title}">제목</a></h2>
+                    <p class="text-muted mb-2" th:text="${#strings.abbreviate(post.content, 140)}">요약</p>
+                    <small class="text-muted">
+                        <span th:text="${post.authorName}">작성자</span>
+                        ·
+                        <span th:text="${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}">작성일</span>
+                    </small>
+                </div>
             </div>
         </article>
     </section>

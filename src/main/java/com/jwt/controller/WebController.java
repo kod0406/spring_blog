@@ -53,26 +53,34 @@ public class WebController {
     private long refreshExpirationMillis;
 
     @GetMapping("/")
-    public String index(Model model) {
-        Page<BoardDto.Response> posts = boardService.getPublicPosts(null, PageRequest.of(0, 5, Sort.by("createdAt").descending()));
+    public String index(Model model, @AuthenticationPrincipal User user) {
+        Page<BoardDto.Response> posts = boardService.getPosts(null, null, null, null, PageRequest.of(0, 5, Sort.by("createdAt").descending()), user);
         model.addAttribute("posts", posts.getContent());
-        model.addAttribute("categories", categoryService.getActiveCategories());
+        model.addAttribute("categories", categoryService.getVisibleCategories(user));
+        model.addAttribute("isAdmin", authorizationService.isAdmin(user));
         return "index";
     }
 
     @GetMapping({"/posts", "/board"})
     public String postList(@RequestParam(defaultValue = "0") int page,
                            @RequestParam(required = false) String category,
+                           @RequestParam(required = false) String keyword,
+                           @RequestParam(required = false) String searchType,
+                           @RequestParam(required = false) String sort,
                            @AuthenticationPrincipal User user,
                            Model model) {
-        Pageable pageable = PageRequest.of(page, 10, Sort.by("createdAt").descending());
-        Page<BoardDto.Response> posts = boardService.getPosts(category, pageable, user);
+        int resolvedPage = Math.max(page, 0);
+        Pageable pageable = PageRequest.of(resolvedPage, 10, Sort.by("createdAt").descending());
+        Page<BoardDto.Response> posts = boardService.getPosts(category, keyword, searchType, sort, pageable, user);
 
         model.addAttribute("posts", posts);
         model.addAttribute("boards", posts);
-        model.addAttribute("categories", categoryService.getActiveCategories());
+        model.addAttribute("categories", categoryService.getVisibleCategories(user));
         model.addAttribute("selectedCategory", category);
-        model.addAttribute("currentPage", page);
+        model.addAttribute("keyword", keyword);
+        model.addAttribute("searchType", searchType == null || searchType.isBlank() ? "title_content" : searchType);
+        model.addAttribute("sort", sort == null || sort.isBlank() ? "latest" : sort);
+        model.addAttribute("currentPage", resolvedPage);
         model.addAttribute("totalPages", posts.getTotalPages());
         model.addAttribute("isAdmin", authorizationService.isAdmin(user));
         return "board/list";

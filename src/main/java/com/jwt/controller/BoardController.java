@@ -6,8 +6,8 @@ import com.jwt.entity.User;
 import com.jwt.service.BoardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,10 +29,14 @@ public class BoardController {
     @GetMapping({"/api/posts", "/api/board"})
     public ResponseEntity<ApiResponse<Page<BoardDto.Response>>> getPosts(
             @RequestParam(required = false) String category,
-            @PageableDefault(size = 10) Pageable pageable,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String searchType,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
             @AuthenticationPrincipal User user
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(boardService.getPosts(category, pageable, user)));
+        return ResponseEntity.ok(ApiResponse.ok(boardService.getPosts(category, keyword, searchType, sort, pageable(page, size), user)));
     }
 
     @GetMapping({"/api/posts/{postId}", "/api/board/{postId}"})
@@ -44,10 +48,14 @@ public class BoardController {
     public ResponseEntity<ApiResponse<Page<BoardDto.Response>>> getAdminPosts(
             @RequestParam(defaultValue = "all") String visibility,
             @RequestParam(required = false) String category,
-            @PageableDefault(size = 20) Pageable pageable,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String searchType,
+            @RequestParam(required = false) String sort,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             @AuthenticationPrincipal User user
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(boardService.getAdminPosts(visibility, category, pageable, user)));
+        return ResponseEntity.ok(ApiResponse.ok(boardService.getAdminPosts(visibility, category, keyword, searchType, sort, pageable(page, size), user)));
     }
 
     @PostMapping("/api/admin/posts")
@@ -75,5 +83,11 @@ public class BoardController {
     ) {
         boardService.deleteBoard(postId, user);
         return ResponseEntity.ok(ApiResponse.ok("글이 삭제되었습니다."));
+    }
+
+    private Pageable pageable(int page, int size) {
+        int resolvedPage = Math.max(page, 0);
+        int resolvedSize = Math.max(1, Math.min(size, 100));
+        return PageRequest.of(resolvedPage, resolvedSize);
     }
 }
