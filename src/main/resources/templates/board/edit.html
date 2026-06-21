@@ -9,23 +9,10 @@
     <style>body{background:#f7f8fa}.navbar-brand{font-weight:700}</style>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-        <a class="navbar-brand" href="/">JWT Blog</a>
-        <div class="navbar-nav ms-auto">
-            <a class="nav-link" href="/posts">글 목록</a>
-            <a class="nav-link" href="/admin">관리</a>
-            <a class="nav-link" href="/admin/posts/new">글쓰기</a>
-            <a class="nav-link" href="/admin/categories">글머리</a>
-            <form sec:authorize="isAuthenticated()" class="d-inline" th:action="@{/logout}" method="post">
-                <button type="submit" class="btn btn-outline-light btn-sm ms-2">로그아웃</button>
-            </form>
-        </div>
-    </div>
-</nav>
+<div th:replace="~{fragments/common :: navbar('write')}"></div>
 
 <main class="container py-4">
-    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+    <div th:replace="~{fragments/common :: flash}"></div>
     <section class="bg-white border rounded p-4">
         <h1 class="h3 mb-4">글 수정</h1>
         <form th:action="@{/admin/posts/{id}/edit(id=${postId})}" method="post" th:object="${boardDto}" id="postForm">

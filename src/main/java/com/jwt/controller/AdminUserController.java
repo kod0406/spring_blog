@@ -3,6 +3,7 @@ package com.jwt.controller;
 import com.jwt.dto.ApiResponse;
 import com.jwt.dto.UserAdminDto;
 import com.jwt.entity.User;
+import com.jwt.service.UserAdminDtoMapper;
 import com.jwt.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,25 +22,26 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdminUserController {
     private final UserService userService;
+    private final UserAdminDtoMapper userAdminDtoMapper;
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<UserAdminDto.Response>>> all(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(ApiResponse.ok(userService.getAllUsers(user).stream().map(UserAdminDto.Response::new).toList()));
+        return ResponseEntity.ok(ApiResponse.ok(userService.getAllUsers(user).stream().map(userAdminDtoMapper::toResponse).toList()));
     }
 
     @GetMapping("/pending")
     public ResponseEntity<ApiResponse<List<UserAdminDto.Response>>> pending(@AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(ApiResponse.ok(userService.getPendingUsers(user).stream().map(UserAdminDto.Response::new).toList()));
+        return ResponseEntity.ok(ApiResponse.ok(userService.getPendingUsers(user).stream().map(userAdminDtoMapper::toResponse).toList()));
     }
 
     @PostMapping("/{userId}/approve")
     public ResponseEntity<ApiResponse<UserAdminDto.Response>> approve(@PathVariable Long userId, @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(ApiResponse.ok("회원이 승인되었습니다.", new UserAdminDto.Response(userService.approveUser(userId, user))));
+        return ResponseEntity.ok(ApiResponse.ok("회원이 승인되었습니다.", userAdminDtoMapper.toResponse(userService.approveUser(userId, user))));
     }
 
     @PostMapping("/{userId}/reject")
     public ResponseEntity<ApiResponse<UserAdminDto.Response>> reject(@PathVariable Long userId, @AuthenticationPrincipal User user) {
-        return ResponseEntity.ok(ApiResponse.ok("회원이 거절되었습니다.", new UserAdminDto.Response(userService.rejectUser(userId, user))));
+        return ResponseEntity.ok(ApiResponse.ok("회원이 거절되었습니다.", userAdminDtoMapper.toResponse(userService.rejectUser(userId, user))));
     }
 
     @PostMapping("/{userId}")
@@ -49,6 +51,6 @@ public class AdminUserController {
             @RequestParam String status,
             @AuthenticationPrincipal User user
     ) {
-        return ResponseEntity.ok(ApiResponse.ok("회원 정보가 수정되었습니다.", new UserAdminDto.Response(userService.updateAdminFields(userId, role, status, user))));
+        return ResponseEntity.ok(ApiResponse.ok("회원 정보가 수정되었습니다.", userAdminDtoMapper.toResponse(userService.updateAdminFields(userId, role, status, user))));
     }
 }

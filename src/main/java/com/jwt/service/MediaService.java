@@ -26,6 +26,7 @@ public class MediaService {
     private final AuthorizationService authorizationService;
     private final ObjectStorageService objectStorageService;
     private final MediaFileRepository mediaFileRepository;
+    private final MediaDtoMapper mediaDtoMapper;
 
     @Transactional
     public MediaDto.Response uploadImage(MultipartFile file, User user) {
@@ -58,7 +59,7 @@ public class MediaService {
             mediaFile.setSize(file.getSize());
             mediaFile.setMediaType(mediaType);
             mediaFile.setUploader(user);
-            return new MediaDto.Response(mediaFileRepository.save(mediaFile));
+            return mediaDtoMapper.toResponse(mediaFileRepository.save(mediaFile));
         } catch (IOException e) {
             throw new IllegalArgumentException("파일을 읽을 수 없습니다.");
         }
