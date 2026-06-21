@@ -4,13 +4,13 @@ import com.jwt.dto.ApiResponse;
 import com.jwt.dto.RegistrationDto;
 import com.jwt.dto.loginDto;
 import com.jwt.entity.User;
+import com.jwt.exception.BadRequestException;
 import com.jwt.jwt.JwtCookieUtil;
 import com.jwt.jwt.JwtTokenProvider;
 import com.jwt.redis.TokenRedisService;
 import com.jwt.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
@@ -27,7 +27,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
-@Slf4j
 public class UserController {
 
     private final UserService userService;
@@ -40,41 +39,31 @@ public class UserController {
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<Void>> register(@RequestBody RegistrationDto requestDto) {
-        try {
-            userService.registerUser(requestDto);
-            return ResponseEntity.ok(ApiResponse.ok("회원가입이 완료되었습니다. 관리자 승인 후 로그인할 수 있습니다."));
-        } catch (IllegalArgumentException e) {
-            log.warn("[회원가입 실패] {}", e.getMessage());
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
+        userService.registerUser(requestDto);
+        return ResponseEntity.ok(ApiResponse.ok("회원가입이 완료되었습니다. 관리자 승인 후 로그인할 수 있습니다."));
     }
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Map<String, Object>>> login(@RequestBody loginDto logindto, HttpServletResponse response) {
-        try {
-            User user = userService.authenticateUser(logindto.getEmail(), logindto.getPassword());
+        User user = userService.authenticateUser(logindto.getEmail(), logindto.getPassword());
 
-            String accessToken = jwtTokenProvider.createAccessToken(String.valueOf(user.getUserId()), user.getRole());
-            String refreshToken = jwtTokenProvider.createRefreshToken(String.valueOf(user.getUserId()), user.getRole());
+        String accessToken = jwtTokenProvider.createAccessToken(String.valueOf(user.getUserId()), user.getRole());
+        String refreshToken = jwtTokenProvider.createRefreshToken(String.valueOf(user.getUserId()), user.getRole());
 
-            ResponseCookie accessTokenCookie = jwtCookieUtil.createAccessTokenCookie(accessToken);
-            response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
-            ResponseCookie refreshTokenCookie = jwtCookieUtil.createRefreshTokenCookie(refreshToken);
-            response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
+        ResponseCookie accessTokenCookie = jwtCookieUtil.createAccessTokenCookie(accessToken);
+        response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
+        ResponseCookie refreshTokenCookie = jwtCookieUtil.createRefreshTokenCookie(refreshToken);
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
 
-            tokenRedisService.saveRefreshToken(String.valueOf(user.getUserId()), refreshToken, refreshExpirationMillis);
+        tokenRedisService.saveRefreshToken(String.valueOf(user.getUserId()), refreshToken, refreshExpirationMillis);
 
-            Map<String, Object> data = new HashMap<>();
-            data.put("userId", user.getUserId());
-            data.put("name", user.getName());
-            data.put("email", user.getEmail());
-            data.put("role", user.getRole());
+        Map<String, Object> data = new HashMap<>();
+        data.put("userId", user.getUserId());
+        data.put("name", user.getName());
+        data.put("email", user.getEmail());
+        data.put("role", user.getRole());
 
-            return ResponseEntity.ok(ApiResponse.ok("로그인되었습니다.", data));
-        } catch (IllegalArgumentException e) {
-            log.warn("[로그인 실패] {}", e.getMessage());
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        }
+        return ResponseEntity.ok(ApiResponse.ok("로그인되었습니다.", data));
     }
 
     @PostMapping("/logout")
@@ -105,19 +94,15 @@ public class UserController {
 
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestBody Map<String, String> request) {
-        try {
-            String email = request.get("email");
-            String newPassword = request.get("newPassword");
-            String confirmPassword = request.get("confirmPassword");
+        String email = request.get("email");
+        String newPassword = request.get("newPassword");
+        String confirmPassword = request.get("confirmPassword");
 
-            if (newPassword == null || !newPassword.equals(confirmPassword)) {
-                return ResponseEntity.badRequest().body(ApiResponse.error("새 비밀번호와 확인 비밀번호가 일치하지 않습니다."));
-            }
-
-            userService.updatePassword(email, newPassword);
-            return ResponseEntity.ok(ApiResponse.ok("비밀번호가 변경되었습니다."));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
+        if (newPassword == null || !newPassword.equals(confirmPassword)) {
+            throw new BadRequestException("새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
         }
+
+        userService.updatePassword(email, newPassword);
+        return ResponseEntity.ok(ApiResponse.ok("비밀번호가 변경되었습니다."));
     }
 }

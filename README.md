@@ -150,3 +150,10 @@ REDIS_PASSWORD=
 - 게시글, 글머리, 댓글, 미디어, 관리자 회원 응답 변환은 mapper 컴포넌트가 담당합니다.
 - Thymeleaf navbar/flash 중복은 `fragments/common.html`의 `navbar`, `adminNavbar`, `authNavbar`, `flash` fragment로 정리했습니다.
 - `loginDto` 클래스명 변경은 이번 안정화 범위에서 제외했습니다. public API 영향은 없지만 import 변경 범위가 넓어 별도 소형 PR로 처리하는 것이 안전합니다.
+
+### Refactor completion notes
+
+- `UserController` now relies on the global `ApiExceptionHandler` for bad request JSON responses, except the email-existence check where returning `exists=false` is the intended API behavior.
+- Common Thymeleaf CSS/script resources live in `fragments/common.html`: Bootstrap CSS, base style, Bootstrap JS, and Toast UI editor assets.
+- `ThymeleafRenderSmokeTest` verifies the main public, post, and admin pages render after fragment extraction.
+- `UserApiExceptionHandlingTest` verifies user API validation errors still return the shared `ApiResponse` error shape.

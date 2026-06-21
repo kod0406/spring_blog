@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>글 수정 - JWT Blog</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://uicdn.toast.com/editor/latest/toastui-editor.min.css">
-    <style>body{background:#f7f8fa}.navbar-brand{font-weight:700}</style>
+    <th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block>
+    <th:block th:replace="~{fragments/common :: toastEditorCss}"></th:block>
+    <th:block th:replace="~{fragments/common :: baseStyle}"></th:block>
 </head>
 <body>
 <div th:replace="~{fragments/common :: navbar('write')}"></div>
@@ -53,7 +53,7 @@
     </section>
 </main>
 
-<script src="https://uicdn.toast.com/editor/latest/toastui-editor-all.min.js"></script>
+<th:block th:replace="~{fragments/common :: toastEditorScript}"></th:block>
 <script th:inline="javascript">
     const initialContent = /*[[${boardDto.contentMarkdown}]]*/ '';
     const editor = new toastui.Editor({
@@ -94,6 +94,6 @@
         document.querySelector('#contentMarkdown').value = editor.getMarkdown();
     });
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
 </body>
 </html>
