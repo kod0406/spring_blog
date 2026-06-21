@@ -93,10 +93,12 @@ class BoardServiceTest {
                     assertThat(response.getReadable()).isTrue();
                 })
                 .anySatisfy(response -> {
-                    assertThat(response.getPostId()).isEqualTo(privatePost.getPostId());
+                    assertThat(response.getPostId()).isNull();
                     assertThat(response.getMasked()).isTrue();
                     assertThat(response.getReadable()).isFalse();
                     assertThat(response.getTitle()).isEqualTo("(권한 없음)");
+                    assertThat(response.getPrivatePost()).isNull();
+                    assertThat(response.getPublished()).isNull();
                     assertThat(response.getAuthorName()).isNull();
                     assertThat(response.getCreatedAt()).isNull();
                 });
@@ -131,7 +133,7 @@ class BoardServiceTest {
 
         assertThat(boardService.getPosts(null, PageRequest.of(0, 10), null).getContent())
                 .anySatisfy(response -> {
-                    assertThat(response.getPostId()).isEqualTo(post.getPostId());
+                    assertThat(response.getPostId()).isNull();
                     assertThat(response.getMasked()).isTrue();
                 });
         assertThat(boardService.getPosts(null, PageRequest.of(0, 10), admin).getContent())
@@ -201,8 +203,11 @@ class BoardServiceTest {
                 .extracting(BoardDto.Response::getPostId)
                 .containsExactly(publicPost.getPostId());
         assertThat(boardService.getPosts(null, "admin writer", "author", "latest", PageRequest.of(0, 10), member).getContent())
-                .extracting(BoardDto.Response::getPostId)
-                .contains(publicPost.getPostId(), privatePost.getPostId());
+                .anySatisfy(response -> assertThat(response.getPostId()).isEqualTo(publicPost.getPostId()))
+                .anySatisfy(response -> {
+                    assertThat(response.getPostId()).isNull();
+                    assertThat(response.getMasked()).isTrue();
+                });
 
         List<BoardDto.Response> publicCommentSearch = boardService.getPosts(null, "needle", "comment", "latest", PageRequest.of(0, 10), member).getContent();
         assertThat(publicCommentSearch)
@@ -211,7 +216,7 @@ class BoardServiceTest {
                     assertThat(response.getMasked()).isFalse();
                 })
                 .anySatisfy(response -> {
-                    assertThat(response.getPostId()).isEqualTo(privatePost.getPostId());
+                    assertThat(response.getPostId()).isNull();
                     assertThat(response.getMasked()).isTrue();
                 });
 

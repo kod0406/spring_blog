@@ -5,7 +5,6 @@ import com.jwt.dto.MediaDto;
 import com.jwt.entity.User;
 import com.jwt.service.MediaService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,13 +22,7 @@ public class UploadController {
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal User user
     ) {
-        try {
-            return ResponseEntity.ok(ApiResponse.ok("이미지가 업로드되었습니다.", mediaService.uploadImage(file, user)));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error(e.getMessage()));
-        }
+        return ResponseEntity.ok(ApiResponse.ok("이미지가 업로드되었습니다.", mediaService.uploadImage(file, user)));
     }
 
     @PostMapping("/api/admin/uploads/videos")
@@ -37,12 +30,6 @@ public class UploadController {
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal User user
     ) {
-        try {
-            return ResponseEntity.ok(ApiResponse.ok("영상이 업로드되었습니다.", mediaService.uploadVideo(file, user)));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
-        } catch (IllegalStateException e) {
-            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiResponse.error(e.getMessage()));
-        }
+        return ResponseEntity.ok(ApiResponse.ok("영상이 업로드되었습니다.", mediaService.uploadVideo(file, user)));
     }
 }

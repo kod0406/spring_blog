@@ -2,8 +2,6 @@ package com.jwt.repository;
 
 import com.jwt.entity.Board;
 import com.jwt.entity.Category;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -11,16 +9,6 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.repository.query.Param;
 
 public interface BoardRepository extends JpaRepository<Board, Long>, JpaSpecificationExecutor<Board> {
-    Page<Board> findAllByOrderByCreatedAtDesc(Pageable pageable);
-
-    @Query("select b from Board b where (b.published = true or b.published is null) and (b.category is null or b.category.visibility is null or b.category.visibility = com.jwt.entity.CategoryVisibility.PUBLIC) order by b.createdAt desc")
-    Page<Board> findPublicPosts(Pageable pageable);
-
-    @Query("select b from Board b where b.category = :category and (b.published = true or b.published is null) and (b.category.visibility is null or b.category.visibility = com.jwt.entity.CategoryVisibility.PUBLIC) order by b.createdAt desc")
-    Page<Board> findPublicPostsByCategory(@Param("category") Category category, Pageable pageable);
-
-    long countByCategory(Category category);
-
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Board b set b.category = null where b.category = :category")
     int clearCategory(@Param("category") Category category);

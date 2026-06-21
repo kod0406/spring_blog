@@ -1,5 +1,6 @@
 package com.jwt.jwt;
 
+import com.jwt.config.SecurityPaths;
 import com.jwt.entity.User;
 import com.jwt.repository.UserRepository;
 import jakarta.servlet.FilterChain;
@@ -9,7 +10,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -95,49 +95,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     private boolean isPublicPath(HttpServletRequest request) {
-        String uri = request.getRequestURI();
-        String method = request.getMethod();
-
-        if (HttpMethod.OPTIONS.matches(method)) {
-            return true;
-        }
-
-        if (uri.equals("/")
-                || uri.equals("/login")
-                || uri.equals("/register")
-                || uri.equals("/reset-password")
-                || uri.startsWith("/reset-password/")
-                || uri.startsWith("/css/")
-                || uri.startsWith("/js/")
-                || uri.startsWith("/images/")
-                || uri.startsWith("/static/")
-                || uri.startsWith("/h2-console/")
-                || uri.startsWith("/email")
-                || uri.startsWith("/signup/email")
-                || uri.equals("/api/categories")
-                || uri.equals("/api/user/register")
-                || uri.equals("/api/user/login")
-                || uri.startsWith("/api/user/reset-password")
-                || uri.startsWith("/email/")
-                || uri.startsWith("/swagger-ui/")
-                || uri.startsWith("/v3/api-docs/")
-                || uri.startsWith("/swagger-resources/")
-                || uri.startsWith("/webjars/")) {
-            return true;
-        }
-
-        if (HttpMethod.GET.matches(method)) {
-            return uri.equals("/posts")
-                    || uri.equals("/board")
-                    || uri.matches("/posts/\\d+")
-                    || uri.matches("/board/\\d+")
-                    || uri.equals("/api/posts")
-                    || uri.equals("/api/board")
-                    || uri.matches("/api/posts/\\d+")
-                    || uri.matches("/api/board/\\d+")
-                    || uri.matches("/api/posts/\\d+/comments");
-        }
-
-        return false;
+        return SecurityPaths.isPublic(request);
     }
 }

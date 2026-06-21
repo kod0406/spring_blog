@@ -133,3 +133,12 @@ REDIS_PASSWORD=
 - 댓글 소프트 삭제와 대댓글 tree 유지
 - 관리자 API 401/403/200 보안 정책
 - 주요 Java/Thymeleaf/README 파일의 깨진 한글 문자열 마커 검사
+
+## 리팩터링 구조 메모
+
+- 권한 검증은 `AuthorizationService`를 중심으로 수행하며, 관리자 전용 서비스 메서드는 컨트롤러 보안 설정에만 의존하지 않습니다.
+- 공개/관리자 경로 목록은 `SecurityPaths`에서 공유하여 `SecurityConfig`와 JWT filter의 허용 경로가 어긋나지 않게 유지합니다.
+- 게시글 검색 조건은 `BoardSearchSpecificationFactory`, 게시글 DTO 변환은 `BoardDtoMapper`가 담당합니다.
+- 관리자 댓글 조회는 전체 댓글을 메모리에서 필터링하지 않고 Repository Specification으로 필터링합니다.
+- 공통 Thymeleaf navbar/flash 영역은 `templates/fragments/common.html` fragment를 사용합니다.
+- 변경 후 기준 검증 명령은 `./gradlew test`와 최종 `./gradlew build`입니다.

@@ -55,11 +55,11 @@ public class BoardDto {
         }
 
         private Response(Board board, String renderedContent, boolean masked) {
-            this.postId = board.getBoardId();
             this.masked = masked;
             this.readable = !masked;
 
             if (masked) {
+                this.postId = null;
                 this.title = "(권한 없음)";
                 this.displayTitle = "(권한 없음)";
                 this.content = null;
@@ -67,8 +67,8 @@ public class BoardDto {
                 this.categoryKey = null;
                 this.categoryDisplayName = null;
                 this.categoryVisibility = null;
-                this.privatePost = true;
-                this.published = true;
+                this.privatePost = null;
+                this.published = null;
                 this.authorId = null;
                 this.authorName = null;
                 this.createdAt = null;
@@ -76,6 +76,7 @@ public class BoardDto {
                 return;
             }
 
+            this.postId = board.getBoardId();
             this.title = board.getTitle();
             this.displayTitle = board.getTitle();
             this.content = board.getContentMarkdown() != null ? board.getContentMarkdown() : board.getContent();

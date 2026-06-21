@@ -66,6 +66,13 @@ class UserServiceTest {
 
     @Test
     void registeredUserStartsPendingAndCannotLoginUntilApproved() {
+        User admin = userRepository.save(User.builder()
+                .email("approval-admin@example.com")
+                .name("Admin")
+                .password("{noop}password")
+                .role(UserRole.ADMIN)
+                .status(UserStatus.ACTIVE)
+                .build());
         RegistrationDto request = new RegistrationDto();
         request.setName("Member");
         request.setEmail("member-login@example.com");
@@ -78,9 +85,37 @@ class UserServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("관리자 승인 대기 중");
 
-        userService.approveUser(user.getUserId());
+        userService.approveUser(user.getUserId(), admin);
         User authenticated = userService.authenticateUser("member-login@example.com", "password");
 
         assertThat(authenticated.getStatusEnum()).isEqualTo(UserStatus.ACTIVE);
+    }
+
+    @Test
+    void approvalOperationsRequireAdminAtServiceLayer() {
+        User member = userRepository.save(User.builder()
+                .email("approval-member@example.com")
+                .name("Member")
+                .password("{noop}password")
+                .role(UserRole.USER)
+                .status(UserStatus.ACTIVE)
+                .build());
+        User pending = userRepository.save(User.builder()
+                .email("approval-pending@example.com")
+                .name("Pending")
+                .password("{noop}password")
+                .role(UserRole.USER)
+                .status(UserStatus.PENDING)
+                .build());
+
+        assertThatThrownBy(() -> userService.getPendingUsers(member))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("관리자 권한");
+        assertThatThrownBy(() -> userService.approveUser(pending.getUserId(), member))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("관리자 권한");
+        assertThatThrownBy(() -> userService.rejectUser(pending.getUserId(), member))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("관리자 권한");
     }
 }

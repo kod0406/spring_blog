@@ -56,21 +56,9 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers(
-                                "/api/user/register",
-                                "/api/user/login",
-                                "/api/user/reset-password",
-                                "/api/user/reset-password/**"
-                        ).permitAll()
-                        .requestMatchers(HttpMethod.GET,
-                                "/api/categories",
-                                "/api/posts",
-                                "/api/board",
-                                "/api/posts/*",
-                                "/api/board/*",
-                                "/api/posts/*/comments"
-                        ).permitAll()
+                        .requestMatchers(SecurityPaths.ADMIN_API_PATTERNS).hasRole("ADMIN")
+                        .requestMatchers(SecurityPaths.PUBLIC_API_PATTERNS).permitAll()
+                        .requestMatchers(HttpMethod.GET, SecurityPaths.PUBLIC_GET_API_PATTERNS).permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/posts/*/comments",
                                 "/api/comments/*/replies",
@@ -100,24 +88,9 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(
-                                "/",
-                                "/login",
-                                "/error",
-                                "/register",
-                                "/reset-password",
-                                "/reset-password/**",
-                                "/css/**",
-                                "/js/**",
-                                "/images/**",
-                                "/static/**",
-                                "/h2-console/**",
-                                "/email",
-                                "/email/**",
-                                "/signup/email"
-                        ).permitAll()
-                        .requestMatchers(HttpMethod.GET, "/posts", "/posts/{postId}", "/board", "/board/{postId}").permitAll()
-                        .requestMatchers("/admin/**", "/posts/write", "/board/write", "/posts/**/edit", "/board/**/edit").hasRole("ADMIN")
+                        .requestMatchers(SecurityPaths.PUBLIC_WEB_PATTERNS).permitAll()
+                        .requestMatchers(HttpMethod.GET, SecurityPaths.PUBLIC_GET_WEB_PATTERNS).permitAll()
+                        .requestMatchers(SecurityPaths.ADMIN_WEB_PATTERNS).hasRole("ADMIN")
                         .requestMatchers("/logout").authenticated()
                         .anyRequest().authenticated()
                 )

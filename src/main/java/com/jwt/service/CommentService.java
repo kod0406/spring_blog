@@ -8,7 +8,10 @@ import com.jwt.exception.BadRequestException;
 import com.jwt.exception.ForbiddenException;
 import com.jwt.exception.NotFoundException;
 import com.jwt.repository.CommentRepository;
+import jakarta.persistence.criteria.JoinType;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,12 +46,8 @@ public class CommentService {
     @Transactional(readOnly = true)
     public List<CommentDto.Response> getAllComments(User user, Long postId, String author, Boolean deleted, String keyword) {
         authorizationService.requireAdmin(user);
-        return commentRepository.findAllByOrderByCreatedAtDesc()
+        return commentRepository.findAll(adminCommentSpecification(postId, author, deleted, keyword), Sort.by(Sort.Direction.DESC, "createdAt"))
                 .stream()
-                .filter(comment -> matchesPost(comment, postId))
-                .filter(comment -> matchesAuthor(comment, author))
-                .filter(comment -> deleted == null || Boolean.TRUE.equals(comment.getDeleted()) == deleted)
-                .filter(comment -> matchesKeyword(comment, keyword))
                 .map(comment -> new CommentDto.Response(comment, depthOf(comment)))
                 .toList();
     }
@@ -152,33 +151,6 @@ public class CommentService {
         }
     }
 
-    private boolean matchesPost(Comment comment, Long postId) {
-        return postId == null || (comment.getPost() != null && comment.getPost().getBoardId() == postId);
-    }
-
-    private boolean matchesAuthor(Comment comment, String author) {
-        if (author == null || author.isBlank()) {
-            return true;
-        }
-        String needle = author.trim().toLowerCase();
-        User writer = comment.getAuthor();
-        return writer != null
-                && ((writer.getName() != null && writer.getName().toLowerCase().contains(needle))
-                || (writer.getEmail() != null && writer.getEmail().toLowerCase().contains(needle)));
-    }
-
-    private boolean matchesKeyword(Comment comment, String keyword) {
-        if (keyword == null || keyword.isBlank()) {
-            return true;
-        }
-        String needle = keyword.trim().toLowerCase();
-        String content = comment.getContent() != null ? comment.getContent().toLowerCase() : "";
-        String title = comment.getPost() != null && comment.getPost().getTitle() != null
-                ? comment.getPost().getTitle().toLowerCase()
-                : "";
-        return content.contains(needle) || title.contains(needle);
-    }
-
     private int depthOf(Comment comment) {
         int depth = 0;
         Comment cursor = comment.getParent();
@@ -187,5 +159,37 @@ public class CommentService {
             cursor = cursor.getParent();
         }
         return depth;
+    }
+
+    private Specification<Comment> adminCommentSpecification(Long postId, String author, Boolean deleted, String keyword) {
+        return (root, query, cb) -> {
+            root.fetch("post", JoinType.LEFT);
+            root.fetch("author", JoinType.LEFT);
+            root.fetch("parent", JoinType.LEFT);
+            query.distinct(true);
+
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (postId != null) {
+                predicates.add(cb.equal(root.get("post").get("boardId"), postId));
+            }
+            if (author != null && !author.isBlank()) {
+                String needle = "%" + author.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(cb.coalesce(root.get("author").get("name"), "")), needle),
+                        cb.like(cb.lower(cb.coalesce(root.get("author").get("email"), "")), needle)
+                ));
+            }
+            if (deleted != null) {
+                predicates.add(cb.equal(cb.coalesce(root.get("deleted"), false), deleted));
+            }
+            if (keyword != null && !keyword.isBlank()) {
+                String needle = "%" + keyword.trim().toLowerCase() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.lower(cb.coalesce(root.get("content"), "")), needle),
+                        cb.like(cb.lower(cb.coalesce(root.get("post").get("title"), "")), needle)
+                ));
+            }
+            return cb.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
     }
 }

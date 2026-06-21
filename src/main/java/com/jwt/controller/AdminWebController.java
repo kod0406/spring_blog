@@ -159,8 +159,7 @@ public class AdminWebController {
                               @AuthenticationPrincipal User user,
                               RedirectAttributes redirectAttributes) {
         try {
-            authorizationService.requireAdmin(user);
-            userService.approveUser(userId);
+            userService.approveUser(userId, user);
             redirectAttributes.addFlashAttribute("message", "회원이 승인되었습니다.");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -173,8 +172,7 @@ public class AdminWebController {
                              @AuthenticationPrincipal User user,
                              RedirectAttributes redirectAttributes) {
         try {
-            authorizationService.requireAdmin(user);
-            userService.rejectUser(userId);
+            userService.rejectUser(userId, user);
             redirectAttributes.addFlashAttribute("message", "회원이 거절되었습니다.");
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
