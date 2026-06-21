@@ -91,7 +91,7 @@ public class WebController {
                              Model model,
                              @AuthenticationPrincipal User user,
                              RedirectAttributes redirectAttributes) {
-        try {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/posts", null, () -> {
             BoardDto.Response post = boardService.getBoardById(postId, user);
             boolean isAdmin = authorizationService.isAdmin(user);
             boolean canComment = Boolean.TRUE.equals(post.getPrivatePost()) ? isAdmin : authorizationService.isActiveUser(user);
@@ -100,42 +100,33 @@ public class WebController {
             model.addAttribute("canComment", canComment);
             model.addAttribute("isAdmin", isAdmin);
             return "board/detail";
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return "redirect:/posts";
-        }
+        });
     }
 
     @GetMapping({"/admin/posts/new", "/posts/write", "/board/write"})
     public String writeForm(@AuthenticationPrincipal User user, Model model, RedirectAttributes redirectAttributes) {
-        try {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/login", null, () -> {
             authorizationService.requireAdmin(user);
             model.addAttribute("boardDto", new BoardDto.Request());
             model.addAttribute("categories", categoryService.getAllCategories(user));
             return "board/write";
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return "redirect:/login";
-        }
+        });
     }
 
     @PostMapping({"/admin/posts", "/posts/write", "/board/write"})
     public String writePost(@ModelAttribute BoardDto.Request boardDto,
                             @AuthenticationPrincipal User user,
                             RedirectAttributes redirectAttributes) {
-        try {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/admin/posts/new", "글 작성 실패: ", () -> {
             BoardDto.Response post = boardService.createBoard(boardDto, user);
             redirectAttributes.addFlashAttribute("message", "글이 작성되었습니다.");
             return "redirect:/posts/" + post.getPostId();
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", "글 작성 실패: " + e.getMessage());
-            return "redirect:/admin/posts/new";
-        }
+        });
     }
 
     @GetMapping({"/admin/posts/{postId}/edit", "/posts/{postId}/edit", "/board/{postId}/edit"})
     public String editForm(@PathVariable Long postId, Model model, @AuthenticationPrincipal User user, RedirectAttributes redirectAttributes) {
-        try {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/posts", null, () -> {
             BoardDto.Response post = boardService.getAdminPost(postId, user);
             BoardDto.Request editDto = new BoardDto.Request(post.getTitle(), post.getContent());
             editDto.setCategoryKey(post.getCategoryKey());
@@ -146,10 +137,7 @@ public class WebController {
             model.addAttribute("boardId", postId);
             model.addAttribute("categories", categoryService.getAllCategories(user));
             return "board/edit";
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-            return "redirect:/posts";
-        }
+        });
     }
 
     @PostMapping({"/admin/posts/{postId}/edit", "/posts/{postId}/edit", "/board/{postId}/edit"})
@@ -157,28 +145,22 @@ public class WebController {
                            @ModelAttribute BoardDto.Request boardDto,
                            @AuthenticationPrincipal User user,
                            RedirectAttributes redirectAttributes) {
-        try {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/admin/posts/" + postId + "/edit", "수정 실패: ", () -> {
             boardService.updateBoard(postId, boardDto, user);
             redirectAttributes.addFlashAttribute("message", "글이 수정되었습니다.");
             return "redirect:/posts/" + postId;
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", "수정 실패: " + e.getMessage());
-            return "redirect:/admin/posts/" + postId + "/edit";
-        }
+        });
     }
 
     @PostMapping({"/admin/posts/{postId}/delete", "/posts/{postId}/delete", "/board/{postId}/delete"})
     public String deletePost(@PathVariable Long postId,
                              @AuthenticationPrincipal User user,
                              RedirectAttributes redirectAttributes) {
-        try {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/posts/" + postId, "삭제 실패: ", () -> {
             boardService.deleteBoard(postId, user);
             redirectAttributes.addFlashAttribute("message", "글이 삭제되었습니다.");
             return "redirect:/posts";
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", "삭제 실패: " + e.getMessage());
-            return "redirect:/posts/" + postId;
-        }
+        });
     }
 
     @GetMapping("/email")
@@ -194,14 +176,11 @@ public class WebController {
 
     @PostMapping("/register")
     public String register(@ModelAttribute RegistrationDto registrationDto, RedirectAttributes redirectAttributes) {
-        try {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/register", "회원가입 실패: ", () -> {
             userService.registerUser(registrationDto);
             redirectAttributes.addFlashAttribute("message", "회원가입이 완료되었습니다. 관리자 승인 후 로그인할 수 있습니다.");
             return "redirect:/login";
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", "회원가입 실패: " + e.getMessage());
-            return "redirect:/register";
-        }
+        });
     }
 
     @GetMapping("/login")
@@ -274,7 +253,7 @@ public class WebController {
                                 @RequestParam String newPassword,
                                 @RequestParam String confirmPassword,
                                 RedirectAttributes redirectAttributes) {
-        try {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/reset-password", "비밀번호 재설정 실패: ", () -> {
             if (!newPassword.equals(confirmPassword)) {
                 redirectAttributes.addFlashAttribute("error", "새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
                 return "redirect:/reset-password";
@@ -283,9 +262,6 @@ public class WebController {
             userService.updatePassword(email, newPassword);
             redirectAttributes.addFlashAttribute("message", "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.");
             return "redirect:/login";
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", "비밀번호 재설정 실패: " + e.getMessage());
-            return "redirect:/reset-password";
-        }
+        });
     }
 }

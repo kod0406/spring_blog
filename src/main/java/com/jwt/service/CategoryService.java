@@ -20,13 +20,14 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final BoardRepository boardRepository;
     private final AuthorizationService authorizationService;
+    private final CategoryDtoMapper categoryDtoMapper;
 
     @Transactional(readOnly = true)
     public List<CategoryDto.Response> getActiveCategories() {
         return categoryRepository.findAllByActiveTrueOrderBySortOrderAscDisplayNameAsc()
                 .stream()
                 .filter(category -> category.getVisibility() == null || category.getVisibility() == CategoryVisibility.PUBLIC)
-                .map(CategoryDto.Response::new)
+                .map(categoryDtoMapper::toResponse)
                 .toList();
     }
 
@@ -43,7 +44,7 @@ public class CategoryService {
         authorizationService.requireAdmin(user);
         return categoryRepository.findAllByOrderBySortOrderAscDisplayNameAsc()
                 .stream()
-                .map(CategoryDto.Response::new)
+                .map(categoryDtoMapper::toResponse)
                 .toList();
     }
 
@@ -75,7 +76,7 @@ public class CategoryService {
         Category category = new Category();
         category.setKey(key);
         applyMutableFields(category, request);
-        return new CategoryDto.Response(categoryRepository.save(category));
+        return categoryDtoMapper.toResponse(categoryRepository.save(category));
     }
 
     @Transactional
@@ -85,7 +86,7 @@ public class CategoryService {
                 .orElseThrow(() -> new NotFoundException("글머리를 찾을 수 없습니다."));
 
         applyMutableFields(category, request);
-        return new CategoryDto.Response(category);
+        return categoryDtoMapper.toResponse(category);
     }
 
     @Transactional

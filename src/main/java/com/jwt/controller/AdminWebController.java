@@ -88,13 +88,8 @@ public class AdminWebController {
     public String createCategory(@ModelAttribute CategoryDto.Request request,
                                  @AuthenticationPrincipal User user,
                                  RedirectAttributes redirectAttributes) {
-        try {
-            categoryService.create(request, user);
-            redirectAttributes.addFlashAttribute("message", "글머리가 생성되었습니다.");
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/admin/categories";
+        return WebRedirectSupport.redirectAfter(redirectAttributes, "redirect:/admin/categories", "글머리가 생성되었습니다.",
+                () -> categoryService.create(request, user));
     }
 
     @PostMapping({"/admin/categories/{categoryId}/edit", "/admin/settings/categories/{categoryId}/edit"})
@@ -102,26 +97,16 @@ public class AdminWebController {
                                  @ModelAttribute CategoryDto.Request request,
                                  @AuthenticationPrincipal User user,
                                  RedirectAttributes redirectAttributes) {
-        try {
-            categoryService.update(categoryId, request, user);
-            redirectAttributes.addFlashAttribute("message", "글머리가 수정되었습니다.");
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/admin/categories";
+        return WebRedirectSupport.redirectAfter(redirectAttributes, "redirect:/admin/categories", "글머리가 수정되었습니다.",
+                () -> categoryService.update(categoryId, request, user));
     }
 
     @PostMapping({"/admin/categories/{categoryId}/delete", "/admin/settings/categories/{categoryId}/delete"})
     public String deleteCategory(@PathVariable Long categoryId,
                                  @AuthenticationPrincipal User user,
                                  RedirectAttributes redirectAttributes) {
-        try {
-            categoryService.delete(categoryId, user);
-            redirectAttributes.addFlashAttribute("message", "글머리가 삭제되었습니다. 연결된 글은 미분류로 변경되었습니다.");
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/admin/categories";
+        return WebRedirectSupport.redirectAfter(redirectAttributes, "redirect:/admin/categories", "글머리가 삭제되었습니다. 연결된 글은 미분류로 변경되었습니다.",
+                () -> categoryService.delete(categoryId, user));
     }
 
     @GetMapping("/admin/users")
@@ -145,39 +130,24 @@ public class AdminWebController {
                              @RequestParam String status,
                              @AuthenticationPrincipal User user,
                              RedirectAttributes redirectAttributes) {
-        try {
-            userService.updateAdminFields(userId, role, status, user);
-            redirectAttributes.addFlashAttribute("message", "회원 정보가 수정되었습니다.");
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/admin/users";
+        return WebRedirectSupport.redirectAfter(redirectAttributes, "redirect:/admin/users", "회원 정보가 수정되었습니다.",
+                () -> userService.updateAdminFields(userId, role, status, user));
     }
 
     @PostMapping("/admin/users/{userId}/approve")
     public String approveUser(@PathVariable Long userId,
                               @AuthenticationPrincipal User user,
                               RedirectAttributes redirectAttributes) {
-        try {
-            userService.approveUser(userId, user);
-            redirectAttributes.addFlashAttribute("message", "회원이 승인되었습니다.");
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/admin/users";
+        return WebRedirectSupport.redirectAfter(redirectAttributes, "redirect:/admin/users", "회원이 승인되었습니다.",
+                () -> userService.approveUser(userId, user));
     }
 
     @PostMapping("/admin/users/{userId}/reject")
     public String rejectUser(@PathVariable Long userId,
                              @AuthenticationPrincipal User user,
                              RedirectAttributes redirectAttributes) {
-        try {
-            userService.rejectUser(userId, user);
-            redirectAttributes.addFlashAttribute("message", "회원이 거절되었습니다.");
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/admin/users";
+        return WebRedirectSupport.redirectAfter(redirectAttributes, "redirect:/admin/users", "회원이 거절되었습니다.",
+                () -> userService.rejectUser(userId, user));
     }
 
     @GetMapping("/admin/comments")
@@ -203,13 +173,8 @@ public class AdminWebController {
     public String deleteComment(@PathVariable Long commentId,
                                 @AuthenticationPrincipal User user,
                                 RedirectAttributes redirectAttributes) {
-        try {
-            commentService.adminDelete(commentId, user);
-            redirectAttributes.addFlashAttribute("message", "댓글이 삭제되었습니다.");
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/admin/comments";
+        return WebRedirectSupport.redirectAfter(redirectAttributes, "redirect:/admin/comments", "댓글이 삭제되었습니다.",
+                () -> commentService.adminDelete(commentId, user));
     }
 
     private boolean requireAdmin(User user, RedirectAttributes redirectAttributes) {

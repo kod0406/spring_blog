@@ -8,24 +8,10 @@
     <style>body{background:#f7f8fa}.navbar-brand{font-weight:700}.category-row{border-bottom:1px solid #e5e7eb}.category-row:last-child{border-bottom:0}</style>
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-    <div class="container">
-        <a class="navbar-brand" href="/">JWT Blog</a>
-        <div class="navbar-nav ms-auto">
-            <a class="nav-link" href="/posts">글 목록</a>
-            <a class="nav-link" href="/admin">관리</a>
-            <a class="nav-link" href="/admin/posts/new">글쓰기</a>
-            <a class="nav-link active" href="/admin/categories">글머리</a>
-            <form sec:authorize="isAuthenticated()" class="d-inline" th:action="@{/logout}" method="post">
-                <button type="submit" class="btn btn-outline-light btn-sm ms-2">로그아웃</button>
-            </form>
-        </div>
-    </div>
-</nav>
+<div th:replace="~{fragments/common :: adminNavbar('categories')}"></div>
 
 <main class="container py-4">
-    <div th:if="${message}" class="alert alert-success" th:text="${message}"></div>
-    <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+    <div th:replace="~{fragments/common :: flash}"></div>
 
     <section class="bg-white border rounded p-4 mb-4">
         <h1 class="h4 mb-3">글머리 생성</h1>

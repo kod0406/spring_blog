@@ -142,3 +142,11 @@ REDIS_PASSWORD=
 - 관리자 댓글 조회는 전체 댓글을 메모리에서 필터링하지 않고 Repository Specification으로 필터링합니다.
 - 공통 Thymeleaf navbar/flash 영역은 `templates/fragments/common.html` fragment를 사용합니다.
 - 변경 후 기준 검증 명령은 `./gradlew test`와 최종 `./gradlew build`입니다.
+
+### 리팩터링 마감 메모
+
+- 관리자 REST API와 관리자 Web 화면은 분리 유지합니다. REST API는 JSON `ApiResponse`, Web 화면은 Thymeleaf template/redirect를 반환합니다.
+- Web redirect/flash 반복 처리는 `WebRedirectSupport`로 공통화했습니다.
+- 게시글, 글머리, 댓글, 미디어, 관리자 회원 응답 변환은 mapper 컴포넌트가 담당합니다.
+- Thymeleaf navbar/flash 중복은 `fragments/common.html`의 `navbar`, `adminNavbar`, `authNavbar`, `flash` fragment로 정리했습니다.
+- `loginDto` 클래스명 변경은 이번 안정화 범위에서 제외했습니다. public API 영향은 없지만 import 변경 범위가 넓어 별도 소형 PR로 처리하는 것이 안전합니다.

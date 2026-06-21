@@ -26,6 +26,7 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final BoardService boardService;
     private final AuthorizationService authorizationService;
+    private final CommentDtoMapper commentDtoMapper;
 
     @Transactional(readOnly = true)
     public List<CommentDto.Response> getTree(Long postId, User viewer) {
@@ -48,7 +49,7 @@ public class CommentService {
         authorizationService.requireAdmin(user);
         return commentRepository.findAll(adminCommentSpecification(postId, author, deleted, keyword), Sort.by(Sort.Direction.DESC, "createdAt"))
                 .stream()
-                .map(comment -> new CommentDto.Response(comment, depthOf(comment)))
+                .map(comment -> commentDtoMapper.toResponse(comment, depthOf(comment)))
                 .toList();
     }
 
@@ -62,7 +63,7 @@ public class CommentService {
         comment.setPost(post);
         comment.setAuthor(user);
         comment.setContent(request.getContent().trim());
-        return new CommentDto.Response(commentRepository.save(comment), 0);
+        return commentDtoMapper.toResponse(commentRepository.save(comment), 0);
     }
 
     @Transactional
@@ -79,7 +80,7 @@ public class CommentService {
         comment.setAuthor(user);
         comment.setParent(parent);
         comment.setContent(request.getContent().trim());
-        return new CommentDto.Response(commentRepository.save(comment), depthOf(parent) + 1);
+        return commentDtoMapper.toResponse(commentRepository.save(comment), depthOf(parent) + 1);
     }
 
     @Transactional
@@ -109,7 +110,7 @@ public class CommentService {
         List<CommentDto.Response> roots = new ArrayList<>();
 
         for (Comment comment : comments) {
-            responses.put(comment.getCommentId(), new CommentDto.Response(comment, depthOf(comment)));
+            responses.put(comment.getCommentId(), commentDtoMapper.toResponse(comment, depthOf(comment)));
         }
 
         for (Comment comment : comments) {
