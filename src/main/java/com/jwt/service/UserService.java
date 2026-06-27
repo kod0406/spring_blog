@@ -142,33 +142,6 @@ public class UserService implements ApplicationRunner {
         return user;
     }
 
-    @Transactional
-    public void resetPassword(String email, String newPassword) {
-        if (newPassword == null || newPassword.length() < 4) {
-            throw new IllegalArgumentException("비밀번호는 최소 4자 이상이어야 합니다.");
-        }
-
-        User user = userRepository.findByEmail(email);
-        if (user == null) {
-            throw new IllegalArgumentException("해당 이메일로 가입된 계정이 없습니다.");
-        }
-
-        user.setPassword(passwordEncoder.encode(newPassword));
-    }
-
-    public User findByEmail(String email) {
-        User user = userRepository.findByEmail(email);
-        if (user == null) {
-            throw new IllegalArgumentException("해당 이메일로 가입된 계정이 없습니다.");
-        }
-        return user;
-    }
-
-    @Transactional
-    public void updatePassword(String email, String newPassword) {
-        resetPassword(email, newPassword);
-    }
-
     private User getUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("사용자를 찾을 수 없습니다."));

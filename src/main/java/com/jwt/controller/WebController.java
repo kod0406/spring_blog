@@ -10,6 +10,7 @@ import com.jwt.redis.TokenRedisService;
 import com.jwt.service.AuthorizationService;
 import com.jwt.service.BoardService;
 import com.jwt.service.CategoryService;
+import com.jwt.service.UserAccountRecoveryService;
 import com.jwt.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -28,13 +29,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @Controller
 @RequiredArgsConstructor
@@ -42,6 +38,7 @@ import java.util.Map;
 public class WebController {
 
     private final UserService userService;
+    private final UserAccountRecoveryService userAccountRecoveryService;
     private final BoardService boardService;
     private final CategoryService categoryService;
     private final AuthorizationService authorizationService;
@@ -232,34 +229,14 @@ public class WebController {
         return "reset-password";
     }
 
-    @PostMapping("/reset-password/check-email")
-    @ResponseBody
-    public Map<String, Boolean> checkEmail(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        Map<String, Boolean> response = new HashMap<>();
-
-        try {
-            userService.findByEmail(email);
-            response.put("success", true);
-        } catch (Exception e) {
-            response.put("success", false);
-        }
-
-        return response;
-    }
-
     @PostMapping("/reset-password")
     public String resetPassword(@RequestParam String email,
+                                @RequestParam String verificationCode,
                                 @RequestParam String newPassword,
                                 @RequestParam String confirmPassword,
                                 RedirectAttributes redirectAttributes) {
         return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/reset-password", "비밀번호 재설정 실패: ", () -> {
-            if (!newPassword.equals(confirmPassword)) {
-                redirectAttributes.addFlashAttribute("error", "새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
-                return "redirect:/reset-password";
-            }
-
-            userService.updatePassword(email, newPassword);
+            userAccountRecoveryService.resetPassword(email, verificationCode, newPassword, confirmPassword);
             redirectAttributes.addFlashAttribute("message", "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.");
             return "redirect:/login";
         });

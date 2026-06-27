@@ -1,13 +1,15 @@
 package com.jwt.controller;
 
 import com.jwt.dto.ApiResponse;
+import com.jwt.dto.EmailDto;
+import com.jwt.dto.PasswordResetDto;
 import com.jwt.dto.RegistrationDto;
 import com.jwt.dto.loginDto;
 import com.jwt.entity.User;
-import com.jwt.exception.BadRequestException;
 import com.jwt.jwt.JwtCookieUtil;
 import com.jwt.jwt.JwtTokenProvider;
 import com.jwt.redis.TokenRedisService;
+import com.jwt.service.UserAccountRecoveryService;
 import com.jwt.service.UserService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +32,7 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final UserAccountRecoveryService userAccountRecoveryService;
     private final JwtTokenProvider jwtTokenProvider;
     private final TokenRedisService tokenRedisService;
     private final JwtCookieUtil jwtCookieUtil;
@@ -77,32 +80,20 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.ok("로그아웃되었습니다."));
     }
 
-    @PostMapping("/reset-password/check-email")
-    public ResponseEntity<ApiResponse<Map<String, Boolean>>> checkEmailForReset(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        Map<String, Boolean> data = new HashMap<>();
-
-        try {
-            userService.findByEmail(email);
-            data.put("exists", true);
-            return ResponseEntity.ok(ApiResponse.ok(data));
-        } catch (Exception e) {
-            data.put("exists", false);
-            return ResponseEntity.ok(ApiResponse.ok(data));
-        }
+    @PostMapping({"/reset-password/request-code", "/reset-password/check-email"})
+    public ResponseEntity<ApiResponse<Void>> requestPasswordResetCode(@RequestBody EmailDto request) {
+        userAccountRecoveryService.requestPasswordReset(request.getEmail());
+        return ResponseEntity.ok(ApiResponse.ok("계정이 존재하면 인증 코드가 이메일로 발송됩니다."));
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        String newPassword = request.get("newPassword");
-        String confirmPassword = request.get("confirmPassword");
-
-        if (newPassword == null || !newPassword.equals(confirmPassword)) {
-            throw new BadRequestException("새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
-        }
-
-        userService.updatePassword(email, newPassword);
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestBody PasswordResetDto request) {
+        userAccountRecoveryService.resetPassword(
+                request.getEmail(),
+                request.getVerificationCode(),
+                request.getNewPassword(),
+                request.getConfirmPassword()
+        );
         return ResponseEntity.ok(ApiResponse.ok("비밀번호가 변경되었습니다."));
     }
 }
