@@ -1,7 +1,7 @@
 package com.jwt.jwt;
 
-import com.jwt.config.SecurityPaths;
 import com.jwt.entity.User;
+import com.jwt.entity.UserStatus;
 import com.jwt.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -31,31 +31,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String token = extractToken(request);
-        boolean publicPath = isPublicPath(request);
 
         if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        if (!jwtTokenProvider.validateToken(token)) {
+        if (!jwtTokenProvider.validateAccessToken(token)) {
             SecurityContextHolder.clearContext();
-            if (publicPath) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "유효하지 않은 JWT 토큰입니다.");
+            filterChain.doFilter(request, response);
             return;
         }
 
         User user = findUser(token);
-        if (user == null) {
+        if (user == null || user.getStatusEnum() != UserStatus.ACTIVE) {
             SecurityContextHolder.clearContext();
-            if (publicPath) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "토큰 사용자를 찾을 수 없습니다.");
+            filterChain.doFilter(request, response);
             return;
         }
 
@@ -92,9 +83,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             log.warn("JWT subject is not a numeric user id. sub={}", userId);
             return null;
         }
-    }
-
-    private boolean isPublicPath(HttpServletRequest request) {
-        return SecurityPaths.isPublic(request);
     }
 }

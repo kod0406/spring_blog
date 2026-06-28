@@ -9,9 +9,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
+import java.nio.charset.StandardCharsets;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -31,32 +31,25 @@ public class JwtTokenProvider {
 
     @PostConstruct
     protected void init() {
-        // secretKey를 이용해 Key 객체 생성
-        this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
+        this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
     public String createAccessToken(String userId, String role){
-        Date now = new Date();
-        Date expiry = new Date(now.getTime() + accessExpirationMillis);
-        Map<String,Object> claims = new HashMap<>();
-        claims.put("sub", userId);
-        claims.put("role", role);
-        return Jwts.builder()
-                .setClaims(claims)
-                .setIssuedAt(now)
-                .setExpiration(expiry)
-                .signWith(key, SignatureAlgorithm.HS256)
-                .compact();
+        return createToken(userId, role, JwtTokenType.ACCESS, accessExpirationMillis);
     }
 
     public String createRefreshToken(String userId, String role){
+        return createToken(userId, role, JwtTokenType.REFRESH, refreshExpirationMillis);
+    }
+
+    private String createToken(String userId, String role, JwtTokenType tokenType, long expirationMillis) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + refreshExpirationMillis);
-        Map<String,Object> claims = new HashMap<>();
-        claims.put("sub", userId);
-        claims.put("role", role);
+        Date expiry = new Date(now.getTime() + expirationMillis);
         return Jwts.builder()
-                .setClaims(claims)
+                .setSubject(userId)
+                .claim("role", role)
+                .claim("type", tokenType.getValue())
+                .setId(UUID.randomUUID().toString())
                 .setIssuedAt(now)
                 .setExpiration(expiry)
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -65,26 +58,37 @@ public class JwtTokenProvider {
 
     public String getClaim(String token, String claimKey) {
         try {
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+            Claims claims = parseClaims(token);
             return claims.get(claimKey, String.class);
-        } catch (JwtException e) {
+        } catch (JwtException | IllegalArgumentException e) {
             log.error("JWT 토큰에서 클레임을 추출하는 중 오류 발생: {}", e.getMessage());
             return null;
         }
     }
 
-    public boolean validateToken(String token) {
+    public boolean validateAccessToken(String token) {
+        return validateTokenType(token, JwtTokenType.ACCESS);
+    }
+
+    public boolean validateRefreshToken(String token) {
+        return validateTokenType(token, JwtTokenType.REFRESH);
+    }
+
+    private boolean validateTokenType(String token, JwtTokenType expectedType) {
         try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
-            return true;
+            Claims claims = parseClaims(token);
+            return expectedType.getValue().equals(claims.get("type", String.class));
         } catch (JwtException | IllegalArgumentException e) {
             log.error("JWT 토큰 검증 실패: {}", e.getMessage());
             return false;
         }
     }
 
+    private Claims parseClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
 }

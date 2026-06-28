@@ -73,6 +73,29 @@ class SecurityAccessTest {
     }
 
     @Test
+    void refreshTokenCannotBeUsedAsAccessToken() throws Exception {
+        User admin = userRepository.saveAndFlush(user("security-refresh-admin@example.com", UserRole.ADMIN));
+        Cookie cookie = new Cookie(
+                accessCookieName,
+                jwtTokenProvider.createRefreshToken(String.valueOf(admin.getUserId()), admin.getRole())
+        );
+
+        mockMvc.perform(get("/api/admin/categories").cookie(cookie))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectedUserCannotKeepUsingPreviouslyIssuedAccessToken() throws Exception {
+        User member = userRepository.saveAndFlush(user("security-rejected@example.com", UserRole.USER));
+        Cookie cookie = accessCookie(member);
+        member.setStatusEnum(UserStatus.REJECTED);
+        userRepository.saveAndFlush(member);
+
+        mockMvc.perform(get("/api/admin/categories").cookie(cookie))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void webAdminPagesRequireAdmin() throws Exception {
         User member = userRepository.saveAndFlush(user("security-web-user@example.com", UserRole.USER));
         User admin = userRepository.saveAndFlush(user("security-web-admin@example.com", UserRole.ADMIN));

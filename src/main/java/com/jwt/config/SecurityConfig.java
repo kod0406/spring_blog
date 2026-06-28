@@ -18,6 +18,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -61,8 +64,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, SecurityPaths.PUBLIC_GET_API_PATTERNS).permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/posts/*/comments",
-                                "/api/comments/*/replies",
-                                "/api/user/logout"
+                                "/api/comments/*/replies"
                         ).authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/comments/*").authenticated()
                         .anyRequest().authenticated()
@@ -83,7 +85,13 @@ public class SecurityConfig {
                 .headers(headers -> headers.frameOptions(frameOptions -> frameOptions.sameOrigin()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint((request, response, authException) -> response.sendRedirect("/login"))
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            String target = request.getRequestURI();
+                            if (request.getQueryString() != null) {
+                                target += "?" + request.getQueryString();
+                            }
+                            response.sendRedirect("/login?returnUrl=" + URLEncoder.encode(target, StandardCharsets.UTF_8));
+                        })
                         .accessDeniedHandler((request, response, accessDeniedException) -> response.sendRedirect("/login"))
                 )
                 .authorizeHttpRequests(authorize -> authorize
@@ -91,7 +99,6 @@ public class SecurityConfig {
                         .requestMatchers(SecurityPaths.PUBLIC_WEB_PATTERNS).permitAll()
                         .requestMatchers(HttpMethod.GET, SecurityPaths.PUBLIC_GET_WEB_PATTERNS).permitAll()
                         .requestMatchers(SecurityPaths.ADMIN_WEB_PATTERNS).hasRole("ADMIN")
-                        .requestMatchers("/logout").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);

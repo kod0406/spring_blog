@@ -92,13 +92,35 @@ JPA_DIALECT=org.hibernate.dialect.MySQLDialect
 
 ## Redis
 
-Redis는 refresh token과 이메일 인증 코드 저장소로 사용됩니다. 로컬 Redis가 없거나 연결에 실패하면 두 기능 모두 현재 애플리케이션 인스턴스의 인메모리 저장소로 fallback합니다. 운영 환경에서는 재시작과 다중 인스턴스 환경에서도 인증 상태를 유지하도록 Redis 연결을 명확히 설정해야 합니다.
+Redis는 refresh token과 이메일 인증 코드 저장소로 사용됩니다. Refresh JWT 원문은 저장하지 않고 SHA-256 hash를 `refresh_token:{userId}`에 TTL과 함께 저장합니다. 갱신 시 Lua compare-and-set으로 현재 hash가 일치할 때만 새 refresh token으로 원자적 rotation합니다. 사용자당 활성 refresh 세션은 1개이므로 새 로그인은 이전 refresh token을 무효화합니다.
+
+Refresh token 저장소는 보안 상태의 일관성을 위해 인메모리 fallback을 사용하지 않습니다. Redis 장애 시 로그인·갱신·폐기는 `503 Service Unavailable`로 실패합니다. 이메일 인증 코드는 단일 인스턴스 개발 편의를 위한 인메모리 fallback을 유지하지만, 운영에서는 Redis 연결과 장애 감시를 필수로 구성해야 합니다.
 
 ```bash
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
 ```
+
+## JWT 세션과 쿠키
+
+- access token: 기본 5분, `type=access`, 요청 인증에만 사용
+- refresh token: 기본 6시간, `type=refresh`, Redis 비교와 재발급에만 사용
+- `POST /api/user/token/refresh`: refresh cookie 검증, Redis hash 비교, access/refresh token 동시 rotation
+- 로그아웃과 비밀번호 재설정: Redis refresh 세션 폐기
+- `PENDING`, `REJECTED` 사용자의 기존 JWT: 인증 단계에서 거부
+
+기존 `type` claim이 없는 JWT는 이 버전 배포 후 사용할 수 없으므로 사용자는 한 번 다시 로그인해야 합니다. 보호된 Thymeleaf 화면에서 access token이 만료되면 로그인 화면이 refresh API를 한 번 호출하고 성공 시 원래 내부 경로로 돌아갑니다.
+
+운영 환경에서는 기본 개발 secret을 사용하지 말고 다음 값을 반드시 설정합니다.
+
+```bash
+JWT_SECRET=32바이트-이상의-충분히-긴-무작위-secret
+JWT_COOKIE_SECURE=true
+JWT_COOKIE_SAME_SITE=Lax
+```
+
+`JWT_COOKIE_SECURE=false`는 로컬 HTTP 개발 기본값입니다. HTTPS 운영에서는 반드시 `true`여야 합니다.
 
 ## 메일과 계정 복구
 
@@ -136,6 +158,7 @@ EMAIL_VERIFICATION_ENABLED=true
 - `/admin/comments`: 댓글 관리
 - `/api/posts`: 공개 글 API
 - `/api/categories`: 공개 글머리 API
+- `POST /api/user/token/refresh`: JWT 갱신과 refresh token rotation
 - `/api/admin/**`: 관리자 API
 
 ## 테스트
@@ -157,12 +180,16 @@ EMAIL_VERIFICATION_ENABLED=true
 - 회원가입 이메일 인증 코드 검증
 - 계정 존재 여부를 노출하지 않는 복구 요청
 - 비밀번호 재설정 코드 용도 분리, 코드 없는 변경 차단, refresh token 폐기
+- access/refresh token type 교차 사용 차단
+- Redis refresh token hash 저장, TTL, 원자적 rotation과 재사용 차단
 - 주요 Java/Thymeleaf/README 파일의 깨진 한글 문자열 마커 검사
+
+실제 Redis 통합 테스트는 Testcontainers의 `redis:7.4-alpine`을 사용합니다. Docker daemon이 없으면 해당 테스트 2개는 skip되며 나머지 단위·통합 테스트는 계속 실행됩니다.
 
 ## 리팩터링 구조 메모
 
 - 권한 검증은 `AuthorizationService`를 중심으로 수행하며, 관리자 전용 서비스 메서드는 컨트롤러 보안 설정에만 의존하지 않습니다.
-- 공개/관리자 경로 목록은 `SecurityPaths`에서 공유하여 `SecurityConfig`와 JWT filter의 허용 경로가 어긋나지 않게 유지합니다.
+- 공개/관리자 경로 목록은 `SecurityPaths`에서 관리하고 `SecurityConfig`가 적용합니다. JWT filter는 경로를 별도 판단하지 않고 인증 실패를 Security filter chain에 위임합니다.
 - 게시글 검색 조건은 `BoardSearchSpecificationFactory`, 게시글 DTO 변환은 `BoardDtoMapper`가 담당합니다.
 - 관리자 댓글 조회는 전체 댓글을 메모리에서 필터링하지 않고 Repository Specification으로 필터링합니다.
 - 공통 Thymeleaf navbar/flash 영역은 `templates/fragments/common.html` fragment를 사용합니다.

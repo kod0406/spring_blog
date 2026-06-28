@@ -5,23 +5,21 @@ import com.jwt.dto.RegistrationDto;
 import com.jwt.dto.loginDto;
 import com.jwt.entity.User;
 import com.jwt.jwt.JwtCookieUtil;
-import com.jwt.jwt.JwtTokenProvider;
-import com.jwt.redis.TokenRedisService;
+import com.jwt.jwt.JwtTokenPair;
 import com.jwt.service.AuthorizationService;
 import com.jwt.service.BoardService;
 import com.jwt.service.CategoryService;
+import com.jwt.service.JwtSessionService;
 import com.jwt.service.UserAccountRecoveryService;
 import com.jwt.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -42,12 +40,8 @@ public class WebController {
     private final BoardService boardService;
     private final CategoryService categoryService;
     private final AuthorizationService authorizationService;
-    private final JwtTokenProvider jwtTokenProvider;
-    private final TokenRedisService tokenRedisService;
+    private final JwtSessionService jwtSessionService;
     private final JwtCookieUtil jwtCookieUtil;
-
-    @Value("${jwt.refresh-Millis}")
-    private long refreshExpirationMillis;
 
     @GetMapping("/")
     public String index(Model model, @AuthenticationPrincipal User user) {
@@ -181,28 +175,25 @@ public class WebController {
     }
 
     @GetMapping("/login")
-    public String loginForm(Model model) {
+    public String loginForm(@RequestParam(required = false) String returnUrl, Model model) {
         model.addAttribute("loginDto", new loginDto());
+        model.addAttribute("returnUrl", safeReturnUrl(returnUrl));
         return "login";
     }
 
     @PostMapping("/login")
-    public String login(@ModelAttribute loginDto loginDto, HttpServletResponse response, RedirectAttributes redirectAttributes) {
+    public String login(@ModelAttribute loginDto loginDto,
+                        @RequestParam(required = false) String returnUrl,
+                        HttpServletResponse response,
+                        RedirectAttributes redirectAttributes) {
         try {
             User user = userService.authenticateUser(loginDto.getEmail(), loginDto.getPassword());
 
-            String accessToken = jwtTokenProvider.createAccessToken(String.valueOf(user.getUserId()), user.getRole());
-            String refreshToken = jwtTokenProvider.createRefreshToken(String.valueOf(user.getUserId()), user.getRole());
-
-            ResponseCookie accessTokenCookie = jwtCookieUtil.createAccessTokenCookie(accessToken);
-            response.addHeader(HttpHeaders.SET_COOKIE, accessTokenCookie.toString());
-            ResponseCookie refreshTokenCookie = jwtCookieUtil.createRefreshTokenCookie(refreshToken);
-            response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString());
-
-            tokenRedisService.saveRefreshToken(String.valueOf(user.getUserId()), refreshToken, refreshExpirationMillis);
+            JwtTokenPair tokenPair = jwtSessionService.issueTokens(user);
+            jwtCookieUtil.addTokenCookies(response, tokenPair);
 
             redirectAttributes.addFlashAttribute("message", "로그인되었습니다.");
-            return "redirect:/posts";
+            return "redirect:" + safeReturnUrl(returnUrl);
         } catch (Exception e) {
             log.warn("[로그인 실패] {}", e.getMessage());
             redirectAttributes.addFlashAttribute("error", "로그인 실패: " + e.getMessage());
@@ -211,13 +202,15 @@ public class WebController {
     }
 
     @PostMapping("/logout")
-    public String logout(@AuthenticationPrincipal User user, HttpServletResponse response, RedirectAttributes redirectAttributes) {
-        if (user != null) {
-            tokenRedisService.deleteRefreshToken(String.valueOf(user.getUserId()));
+    public String logout(@AuthenticationPrincipal User user,
+                         HttpServletRequest request,
+                         HttpServletResponse response,
+                         RedirectAttributes redirectAttributes) {
+        try {
+            jwtSessionService.revoke(jwtCookieUtil.extractRefreshToken(request), user);
+        } finally {
+            jwtCookieUtil.deleteTokenCookies(response);
         }
-
-        response.addHeader(HttpHeaders.SET_COOKIE, jwtCookieUtil.deleteAccessTokenCookie().toString());
-        response.addHeader(HttpHeaders.SET_COOKIE, jwtCookieUtil.deleteRefreshTokenCookie().toString());
         org.springframework.security.core.context.SecurityContextHolder.clearContext();
 
         redirectAttributes.addFlashAttribute("message", "로그아웃되었습니다.");
@@ -240,5 +233,17 @@ public class WebController {
             redirectAttributes.addFlashAttribute("message", "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.");
             return "redirect:/login";
         });
+    }
+
+    private String safeReturnUrl(String returnUrl) {
+        if (returnUrl == null
+                || !returnUrl.startsWith("/")
+                || returnUrl.startsWith("//")
+                || returnUrl.contains("\\")
+                || returnUrl.contains("\r")
+                || returnUrl.contains("\n")) {
+            return "/posts";
+        }
+        return returnUrl;
     }
 }

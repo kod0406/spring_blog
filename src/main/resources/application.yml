@@ -50,6 +50,9 @@ jwt:
   expiration-Millis: ${JWT_EXPIRATION_MILLIS:300000}
   access-cookie-name: jwt_token
   refresh-cookie-name: jwt_refresh_token
+  cookie-secure: ${JWT_COOKIE_SECURE:false}
+  cookie-same-site: ${JWT_COOKIE_SAME_SITE:Lax}
+  refresh-cookie-path: /
 
 app:
   email-verification:
