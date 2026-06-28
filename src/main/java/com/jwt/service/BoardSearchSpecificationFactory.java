@@ -30,6 +30,7 @@ public class BoardSearchSpecificationFactory {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(publishedPredicate(root, cb));
+            predicates.add(notDraftPredicate(root, cb));
             addCategoryPredicate(predicates, root, cb, condition.getCategory(), true);
             addKeywordPredicate(predicates, root, query, cb, condition.getKeyword(), effectiveSearchType(condition.getSearchType()));
             return cb.and(predicates.toArray(Predicate[]::new));
@@ -59,6 +60,10 @@ public class BoardSearchSpecificationFactory {
         return cb.or(cb.isNull(root.get("published")), cb.isTrue(root.get("published")));
     }
 
+    private Predicate notDraftPredicate(Root<Board> root, jakarta.persistence.criteria.CriteriaBuilder cb) {
+        return cb.or(cb.isNull(root.get("draft")), cb.isFalse(root.get("draft")));
+    }
+
     private void addVisibilityPredicate(List<Predicate> predicates,
                                         Root<Board> root,
                                         jakarta.persistence.criteria.CriteriaBuilder cb,
@@ -68,6 +73,7 @@ public class BoardSearchSpecificationFactory {
         }
         if ("public".equals(visibility)) {
             predicates.add(publishedPredicate(root, cb));
+            predicates.add(notDraftPredicate(root, cb));
             predicates.add(cb.or(
                     cb.isNull(root.get("category")),
                     cb.isNull(root.get("category").get("visibility")),
@@ -81,6 +87,11 @@ public class BoardSearchSpecificationFactory {
         }
         if ("unpublished".equals(visibility)) {
             predicates.add(cb.isFalse(root.get("published")));
+            predicates.add(notDraftPredicate(root, cb));
+            return;
+        }
+        if ("draft".equals(visibility)) {
+            predicates.add(cb.isTrue(root.get("draft")));
             return;
         }
         if ("uncategorized".equals(visibility)) {
@@ -171,7 +182,7 @@ public class BoardSearchSpecificationFactory {
 
     private String effectiveVisibility(String visibility) {
         String value = visibility == null ? "all" : visibility.toLowerCase();
-        if (!Set.of("all", "public", "private", "unpublished", "uncategorized").contains(value)) {
+        if (!Set.of("all", "public", "private", "unpublished", "draft", "uncategorized").contains(value)) {
             throw new BadRequestException("지원하지 않는 visibility 값입니다.");
         }
         return value;

@@ -11,11 +11,17 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import jakarta.persistence.Index;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "media_file", indexes = {
+        @Index(name = "idx_media_board", columnList = "board_id"),
+        @Index(name = "idx_media_status_orphaned", columnList = "status,orphaned_at")
+})
 @Data
 public class MediaFile {
     @Id
@@ -45,10 +51,30 @@ public class MediaFile {
     @JoinColumn(name = "uploader_id")
     private User uploader;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "board_id")
+    private Board board;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
+    private MediaStatus status = MediaStatus.ACTIVE;
+
+    @Column(name = "orphaned_at")
+    private LocalDateTime orphanedAt;
+
     private LocalDateTime createdAt;
 
     @PrePersist
     void created() {
-        this.createdAt = LocalDateTime.now();
+        if (this.createdAt == null) {
+            this.createdAt = LocalDateTime.now();
+        }
+        if (this.status == null) {
+            this.status = MediaStatus.ACTIVE;
+        }
+    }
+
+    public MediaStatus effectiveStatus() {
+        return status == null ? MediaStatus.ACTIVE : status;
     }
 }

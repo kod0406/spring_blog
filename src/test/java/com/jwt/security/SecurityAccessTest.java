@@ -73,6 +73,20 @@ class SecurityAccessTest {
     }
 
     @Test
+    void draftCreationApiRequiresAdmin() throws Exception {
+        User member = userRepository.saveAndFlush(user("security-draft-user@example.com", UserRole.USER));
+        User admin = userRepository.saveAndFlush(user("security-draft-admin@example.com", UserRole.ADMIN));
+
+        mockMvc.perform(post("/api/admin/posts/drafts"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/admin/posts/drafts").cookie(accessCookie(member)))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/api/admin/posts/drafts").cookie(accessCookie(admin)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.draft").value(true));
+    }
+
+    @Test
     void refreshTokenCannotBeUsedAsAccessToken() throws Exception {
         User admin = userRepository.saveAndFlush(user("security-refresh-admin@example.com", UserRole.ADMIN));
         Cookie cookie = new Cookie(

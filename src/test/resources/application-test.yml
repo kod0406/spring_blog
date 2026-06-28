@@ -42,7 +42,10 @@ app:
 
 oci:
   object-storage:
-    enabled: false
+    auth-mode: instance-principal
+    config-file:
+    profile: DEFAULT
+    region:
+    namespace:
     image-bucket:
     video-bucket:
-    public-base-url:

@@ -41,7 +41,8 @@ public final class SecurityPaths {
             "/posts",
             "/posts/{postId}",
             "/board",
-            "/board/{postId}"
+            "/board/{postId}",
+            "/media/**"
     };
 
     public static final String[] ADMIN_API_PATTERNS = {

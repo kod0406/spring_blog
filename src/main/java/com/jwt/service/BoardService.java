@@ -28,6 +28,7 @@ public class BoardService {
     private final AuthorizationService authorizationService;
     private final BoardSearchSpecificationFactory boardSearchSpecificationFactory;
     private final BoardDtoMapper boardDtoMapper;
+    private final MediaLifecycleService mediaLifecycleService;
 
     @Transactional
     public BoardDto.Response createBoard(BoardDto.Request requestDto, User user) {
@@ -36,6 +37,7 @@ public class BoardService {
 
         Board board = new Board();
         applyRequest(board, requestDto);
+        board.setDraft(false);
         board.setUser(user);
 
         return boardDtoMapper.toResponse(boardRepository.save(board));
@@ -44,6 +46,19 @@ public class BoardService {
     @Transactional(readOnly = true)
     public Page<BoardDto.Response> getPosts(String categoryKey, Pageable pageable, User viewer) {
         return getPosts(categoryKey, null, null, null, pageable, viewer);
+    }
+
+    @Transactional
+    public BoardDto.Response createDraft(User user) {
+        authorizationService.requireAdmin(user);
+        Board board = new Board();
+        board.setTitle("");
+        board.setContent("");
+        board.setContentMarkdown("");
+        board.setPublished(false);
+        board.setDraft(true);
+        board.setUser(user);
+        return boardDtoMapper.toResponse(boardRepository.save(board));
     }
 
     @Transactional(readOnly = true)
@@ -136,14 +151,29 @@ public class BoardService {
 
         Board board = getPostEntity(boardId);
         applyRequest(board, requestDto);
+        board.setDraft(false);
+        mediaLifecycleService.reconcile(board, board.getContentMarkdown());
 
+        return boardDtoMapper.toResponse(board);
+    }
+
+    @Transactional
+    public BoardDto.Response saveDraft(Long boardId, BoardDto.Request requestDto, User user) {
+        authorizationService.requireAdmin(user);
+        Board board = getPostEntity(boardId);
+        applyDraftRequest(board, requestDto);
+        board.setPublished(false);
+        board.setDraft(true);
+        mediaLifecycleService.reconcile(board, board.getContentMarkdown());
         return boardDtoMapper.toResponse(board);
     }
 
     @Transactional
     public void deleteBoard(Long boardId, User user) {
         authorizationService.requireAdmin(user);
-        boardRepository.delete(getPostEntity(boardId));
+        Board board = getPostEntity(boardId);
+        mediaLifecycleService.detachForBoardDeletion(board);
+        boardRepository.delete(board);
     }
 
     public boolean canComment(Board board, User user) {
@@ -158,7 +188,7 @@ public class BoardService {
     }
 
     public boolean isPubliclyReadable(Board board) {
-        return !Boolean.FALSE.equals(board.getPublished()) && !isPrivateCategory(board);
+        return !board.isDraftPost() && !Boolean.FALSE.equals(board.getPublished()) && !isPrivateCategory(board);
     }
 
     private void applyRequest(Board board, BoardDto.Request requestDto) {
@@ -191,6 +221,32 @@ public class BoardService {
         Sort.Direction direction = "oldest".equals(effectiveSort) ? Sort.Direction.ASC : Sort.Direction.DESC;
         Sort resolvedSort = Sort.by(direction, "createdAt").and(Sort.by(direction, "boardId"));
         return PageRequest.of(page, size, resolvedSort);
+    }
+
+    private void applyDraftRequest(Board board, BoardDto.Request requestDto) {
+        if (requestDto == null) {
+            throw new BadRequestException("임시 저장할 글 정보가 없습니다.");
+        }
+        String title = requestDto.getTitle() == null ? "" : requestDto.getTitle().trim();
+        if (title.length() > 200) {
+            throw new BadRequestException("제목은 200자 이하로 입력해 주세요.");
+        }
+        String rawMarkdown = requestDto.getContentMarkdown() != null
+                ? requestDto.getContentMarkdown()
+                : requestDto.getContent();
+        String markdown = rawMarkdown == null ? "" : rawMarkdown;
+        board.setTitle(title);
+        board.setContent(markdown);
+        board.setContentMarkdown(markdown);
+
+        if (requestDto.getCategoryKey() == null || requestDto.getCategoryKey().isBlank()) {
+            board.setCategory(null);
+            return;
+        }
+        Category category = categoryRepository.findByKey(requestDto.getCategoryKey().trim())
+                .filter(it -> Boolean.TRUE.equals(it.getActive()))
+                .orElseThrow(() -> new NotFoundException("글머리를 찾을 수 없습니다."));
+        board.setCategory(category);
     }
 
     private void validateRequest(BoardDto.Request requestDto) {

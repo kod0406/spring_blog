@@ -26,6 +26,9 @@ public class Board {
     @Column(nullable = true)
     private Boolean published = true;
 
+    @Column(nullable = true)
+    private Boolean draft = false;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
@@ -46,6 +49,9 @@ public class Board {
         if (published == null) {
             published = true;
         }
+        if (draft == null) {
+            draft = false;
+        }
         if (contentMarkdown == null) {
             contentMarkdown = content;
         }
@@ -54,5 +60,9 @@ public class Board {
     @PreUpdate
     void updated() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    public boolean isDraftPost() {
+        return Boolean.TRUE.equals(draft);
     }
 }

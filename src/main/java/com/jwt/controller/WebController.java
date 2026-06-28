@@ -98,9 +98,15 @@ public class WebController {
     public String writeForm(@AuthenticationPrincipal User user, Model model, RedirectAttributes redirectAttributes) {
         return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/login", null, () -> {
             authorizationService.requireAdmin(user);
-            model.addAttribute("boardDto", new BoardDto.Request());
-            model.addAttribute("categories", categoryService.getAllCategories(user));
-            return "board/write";
+            return "redirect:/admin/posts";
+        });
+    }
+
+    @PostMapping("/admin/posts/drafts")
+    public String createDraft(@AuthenticationPrincipal User user, RedirectAttributes redirectAttributes) {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/admin/posts", "초안 생성 실패: ", () -> {
+            BoardDto.Response draft = boardService.createDraft(user);
+            return "redirect:/admin/posts/" + draft.getPostId() + "/edit";
         });
     }
 
@@ -127,6 +133,7 @@ public class WebController {
             model.addAttribute("postId", postId);
             model.addAttribute("boardId", postId);
             model.addAttribute("categories", categoryService.getAllCategories(user));
+            model.addAttribute("draft", post.getDraft());
             return "board/edit";
         });
     }
@@ -140,6 +147,32 @@ public class WebController {
             boardService.updateBoard(postId, boardDto, user);
             redirectAttributes.addFlashAttribute("message", "글이 수정되었습니다.");
             return "redirect:/posts/" + postId;
+        });
+    }
+
+    @PostMapping("/admin/posts/{postId}/draft")
+    public String saveDraft(@PathVariable Long postId,
+                            @ModelAttribute BoardDto.Request boardDto,
+                            @AuthenticationPrincipal User user,
+                            RedirectAttributes redirectAttributes) {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/admin/posts/" + postId + "/edit", "임시 저장 실패: ", () -> {
+            boardService.saveDraft(postId, boardDto, user);
+            redirectAttributes.addFlashAttribute("message", "초안이 임시 저장되었습니다.");
+            return "redirect:/admin/posts/" + postId + "/edit";
+        });
+    }
+
+    @PostMapping("/admin/posts/{postId}/cancel")
+    public String cancelDraft(@PathVariable Long postId,
+                              @AuthenticationPrincipal User user,
+                              RedirectAttributes redirectAttributes) {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/admin/posts", "초안 취소 실패: ", () -> {
+            BoardDto.Response post = boardService.getAdminPost(postId, user);
+            if (Boolean.TRUE.equals(post.getDraft())) {
+                boardService.deleteBoard(postId, user);
+                redirectAttributes.addFlashAttribute("message", "초안이 취소되었습니다. 미디어는 24시간 후 정리됩니다.");
+            }
+            return "redirect:/admin/posts";
         });
     }
 

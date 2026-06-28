@@ -18,7 +18,9 @@
         <div class="navbar-nav ms-auto">
             <a class="nav-link" th:classappend="${active == 'posts'} ? ' active'" href="/posts">글 목록</a>
             <a sec:authorize="hasRole('ADMIN')" class="nav-link" th:classappend="${active == 'admin'} ? ' active'" href="/admin">관리</a>
-            <a sec:authorize="hasRole('ADMIN')" class="nav-link" th:classappend="${active == 'write'} ? ' active'" href="/admin/posts/new">글쓰기</a>
+            <form sec:authorize="hasRole('ADMIN')" class="d-inline" th:action="@{/admin/posts/drafts}" method="post">
+                <button type="submit" class="nav-link btn btn-link" th:classappend="${active == 'write'} ? ' active'">글쓰기</button>
+            </form>
             <a sec:authorize="!isAuthenticated()" class="nav-link" href="/login">로그인</a>
             <a sec:authorize="!isAuthenticated()" class="nav-link" href="/register">회원가입</a>
             <form sec:authorize="isAuthenticated()" class="d-inline" th:action="@{/logout}" method="post">

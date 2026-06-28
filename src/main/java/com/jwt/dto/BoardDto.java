@@ -39,6 +39,7 @@ public class BoardDto {
         private final CategoryVisibility categoryVisibility;
         private final Boolean privatePost;
         private final Boolean published;
+        private final Boolean draft;
         private final Boolean masked;
         private final Boolean readable;
         private final Long authorId;
@@ -69,6 +70,7 @@ public class BoardDto {
                 this.categoryVisibility = null;
                 this.privatePost = null;
                 this.published = null;
+                this.draft = null;
                 this.authorId = null;
                 this.authorName = null;
                 this.createdAt = null;
@@ -88,6 +90,7 @@ public class BoardDto {
                     : CategoryVisibility.PUBLIC;
             this.privatePost = this.categoryVisibility == CategoryVisibility.PRIVATE;
             this.published = board.getPublished() == null || board.getPublished();
+            this.draft = board.isDraftPost();
             this.authorId = board.getUser() != null ? board.getUser().getUserId() : null;
             this.authorName = board.getUser() != null ? board.getUser().getName() : null;
             this.createdAt = board.getCreatedAt();

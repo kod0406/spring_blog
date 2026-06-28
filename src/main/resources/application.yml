@@ -39,7 +39,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 60MB
-      max-request-size: 60MB
+      max-request-size: 61MB
 
 server:
   port: ${SERVER_PORT:8080}
@@ -57,6 +57,9 @@ jwt:
 app:
   email-verification:
     enabled: ${EMAIL_VERIFICATION_ENABLED:false}
+  media:
+    orphan-retention-hours: ${MEDIA_ORPHAN_RETENTION_HOURS:24}
+    cleanup-interval-ms: ${MEDIA_CLEANUP_INTERVAL_MS:3600000}
   admin:
     email: ${ADMIN_EMAIL:${OWNER_EMAIL:}}
     password: ${ADMIN_PASSWORD:${OWNER_PASSWORD:}}
@@ -68,7 +71,10 @@ app:
 
 oci:
   object-storage:
-    enabled: ${OCI_OBJECT_STORAGE_ENABLED:false}
+    auth-mode: ${OCI_AUTH_MODE:instance-principal}
+    config-file: ${OCI_CONFIG_FILE:}
+    profile: ${OCI_PROFILE:DEFAULT}
+    region: ${OCI_REGION:}
+    namespace: ${OCI_NAMESPACE:}
     image-bucket: ${OCI_IMAGE_BUCKET:}
     video-bucket: ${OCI_VIDEO_BUCKET:}
-    public-base-url: ${OCI_PUBLIC_BASE_URL:}

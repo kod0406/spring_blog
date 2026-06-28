@@ -35,3 +35,12 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# OCI credentials and external local configuration
+.oci/
+**/.oci/
+*.pem
+*.key
+oci-local.properties
+oci-*.properties
+*-oci.properties

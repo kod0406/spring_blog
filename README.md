@@ -140,9 +140,67 @@ EMAIL_VERIFICATION_ENABLED=true
 
 ## 파일 업로드와 OCI
 
-이미지와 영상 업로드 API는 관리자 전용으로 준비되어 있습니다. 현재 OCI Object Storage 실제 SDK 인증키 연결은 이 작업 범위에 포함하지 않았습니다.
+이미지와 영상은 서로 다른 비공개 OCI Object Storage 버킷에 저장합니다. 브라우저에는 OCI 객체 URL이나 PAR URL을 전달하지 않고 애플리케이션의 `/media/{mediaId}` 경로만 제공합니다. 서버가 게시글의 PUBLIC/PRIVATE, published, draft 정책을 검사한 뒤 OCI 객체를 스트리밍합니다.
 
-`OCI_OBJECT_STORAGE_ENABLED=false`가 기본값이며, 이 상태에서는 로컬 fallback URL을 사용합니다. 실제 OCI 연동에는 별도 SDK 설정, 인증키, 버킷 권한 구성이 필요합니다.
+파일 제한과 저장 정책:
+
+- 이미지 5MB: JPEG, PNG, WebP, GIF
+- 동영상 60MB: MP4, WebM
+- Apache Tika로 실제 파일 형식을 검사하며 클라이언트 Content-Type만 신뢰하지 않음
+- object key는 원본 파일명을 포함하지 않는 UUID 기반 값
+- 업로드와 조회는 `InputStream` 기반이며 전체 파일을 `byte[]`로 적재하지 않음
+- 동영상은 단일 HTTP Range와 `206`, `Content-Range`, `Accept-Ranges`를 지원
+
+### 운영: Instance Principal
+
+OCI ARM Compute 운영 환경의 기본 인증 방식은 `instance-principal`입니다. Compute instance가 속한 dynamic group과 두 비공개 버킷에 대한 Object Storage IAM policy는 OCI에서 별도로 구성해야 합니다. 애플리케이션이나 저장소에 API signing key를 배치하지 않습니다.
+
+```bash
+OCI_AUTH_MODE=instance-principal
+OCI_REGION=사용자 직접 입력
+OCI_NAMESPACE=사용자 직접 입력
+OCI_IMAGE_BUCKET=사용자 직접 입력
+OCI_VIDEO_BUCKET=사용자 직접 입력
+```
+
+### 로컬: OCI config file
+
+로컬에서는 프로젝트 외부의 `~/.oci/config`와 해당 config가 가리키는 PEM API signing key를 사용합니다. 실제 값은 환경변수 또는 외부 properties에만 저장합니다.
+
+```powershell
+$env:SPRING_CONFIG_ADDITIONAL_LOCATION='file:C:/secure/oci-local.properties'
+```
+
+외부 `oci-local.properties` 형식:
+
+```properties
+oci.object-storage.auth-mode=config-file
+oci.object-storage.config-file=외부 OCI config 경로
+oci.object-storage.profile=DEFAULT
+oci.object-storage.region=사용자 직접 입력
+oci.object-storage.namespace=사용자 직접 입력
+oci.object-storage.image-bucket=사용자 직접 입력
+oci.object-storage.video-bucket=사용자 직접 입력
+```
+
+외부 properties, `.oci`, PEM, private key는 Git에 추가하지 않습니다. 배포 서버 접속에 사용하는 **SSH private key**와 OCI API 요청 서명에 사용하는 **OCI API signing key**는 목적과 등록 위치가 다른 별도 키입니다. SSH 키를 OCI SDK config의 `key_file`로 사용하거나 API signing key를 SSH 배포 키로 사용하지 않습니다.
+
+### 초안과 미디어 수명주기
+
+- 새 글은 먼저 `draft=true`, `published=false` 초안으로 생성
+- 업로드는 `postId`가 필수이며 초안 또는 기존 글에 연결
+- `임시 저장`은 초안을 유지하고 `게시/저장`은 `draft=false`로 전환
+- PUBLIC 목록·검색·상세에서 초안 제외
+- 본문에서 제거된 미디어는 `ORPHAN`으로 전환
+- 24시간 지난 ORPHAN과 미완성 초안을 scheduler가 정리
+- OCI 삭제가 실패하면 DB row를 남겨 다음 실행에서 재시도
+- 기존 미연결 미디어 row는 자동 삭제하지 않음
+
+미디어 조회 정책:
+
+- PUBLIC + `published=true` + 비초안: 익명 조회 가능
+- PRIVATE, `published=false`, draft: ADMIN만 조회 가능
+- 권한 없음, 연결 없음, ORPHAN: 404
 
 ## 주요 경로
 
@@ -159,6 +217,11 @@ EMAIL_VERIFICATION_ENABLED=true
 - `/api/posts`: 공개 글 API
 - `/api/categories`: 공개 글머리 API
 - `POST /api/user/token/refresh`: JWT 갱신과 refresh token rotation
+- `POST /api/admin/posts/drafts`: 관리자 초안 생성
+- `PUT /api/admin/posts/{id}/draft`: 관리자 임시 저장
+- `POST /api/admin/uploads/images`: 이미지 업로드, `postId` 필수
+- `POST /api/admin/uploads/videos`: 동영상 업로드, `postId` 필수
+- `GET /media/{mediaId}`: 권한 검사 후 미디어 스트리밍
 - `/api/admin/**`: 관리자 API
 
 ## 테스트
@@ -182,9 +245,21 @@ EMAIL_VERIFICATION_ENABLED=true
 - 비밀번호 재설정 코드 용도 분리, 코드 없는 변경 차단, refresh token 폐기
 - access/refresh token type 교차 사용 차단
 - Redis refresh token hash 저장, TTL, 원자적 rotation과 재사용 차단
+- 이미지·동영상 OCI 버킷 분리와 InputStream 업로드
+- MIME 위조·빈 파일·크기 초과 거부
+- PUBLIC/PRIVATE/unpublished/draft/ORPHAN 미디어 조회 정책
+- 동영상 Range 조회와 206 응답
+- 초안 임시 저장·최종 게시·공개 조회 제외
+- ORPHAN 24시간 정리와 OCI 삭제 실패 재시도
 - 주요 Java/Thymeleaf/README 파일의 깨진 한글 문자열 마커 검사
 
 실제 Redis 통합 테스트는 Testcontainers의 `redis:7.4-alpine`을 사용합니다. Docker daemon이 없으면 해당 테스트 2개는 skip되며 나머지 단위·통합 테스트는 계속 실행됩니다.
+
+실제 OCI 통합 테스트는 기본 `test`와 `build`에서 제외됩니다. 외부 properties와 OCI 권한을 사용해 수동으로만 실행합니다.
+
+```bash
+./gradlew ociIntegrationTest
+```
 
 ## 리팩터링 구조 메모
 

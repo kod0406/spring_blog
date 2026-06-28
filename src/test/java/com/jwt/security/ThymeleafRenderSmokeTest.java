@@ -76,6 +76,9 @@ class ThymeleafRenderSmokeTest {
         mockMvc.perform(get("/admin/posts").cookie(cookie))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/admin/posts/new").cookie(cookie))
+                .andExpect(status().is3xxRedirection());
+        BoardDto.Response draft = boardService.createDraft(admin);
+        mockMvc.perform(get("/admin/posts/{postId}/edit", draft.getPostId()).cookie(cookie))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/admin/categories").cookie(cookie))
                 .andExpect(status().isOk());

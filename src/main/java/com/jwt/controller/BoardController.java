@@ -67,6 +67,12 @@ public class BoardController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("글이 작성되었습니다.", responseDto));
     }
 
+    @PostMapping("/api/admin/posts/drafts")
+    public ResponseEntity<ApiResponse<BoardDto.Response>> createDraft(@AuthenticationPrincipal User user) {
+        BoardDto.Response responseDto = boardService.createDraft(user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok("초안이 생성되었습니다.", responseDto));
+    }
+
     @PutMapping("/api/admin/posts/{postId}")
     public ResponseEntity<ApiResponse<BoardDto.Response>> updatePost(
             @PathVariable Long postId,
@@ -74,6 +80,15 @@ public class BoardController {
             @AuthenticationPrincipal User user
     ) {
         return ResponseEntity.ok(ApiResponse.ok("글이 수정되었습니다.", boardService.updateBoard(postId, requestDto, user)));
+    }
+
+    @PutMapping("/api/admin/posts/{postId}/draft")
+    public ResponseEntity<ApiResponse<BoardDto.Response>> saveDraft(
+            @PathVariable Long postId,
+            @RequestBody BoardDto.Request requestDto,
+            @AuthenticationPrincipal User user
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok("초안이 임시 저장되었습니다.", boardService.saveDraft(postId, requestDto, user)));
     }
 
     @DeleteMapping("/api/admin/posts/{postId}")

@@ -17,7 +17,7 @@ public class MediaDto {
         public Response(MediaFile mediaFile) {
             this.mediaFileId = mediaFile.getMediaFileId();
             this.originalFilename = mediaFile.getOriginalFilename();
-            this.url = mediaFile.getUrl();
+            this.url = "/media/" + mediaFile.getMediaFileId();
             this.mimeType = mediaFile.getMimeType();
             this.size = mediaFile.getSize();
             this.mediaType = mediaFile.getMediaType().name();

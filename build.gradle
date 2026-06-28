@@ -33,6 +33,10 @@ dependencies {
     implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
     implementation 'org.jsoup:jsoup:1.19.1'
     implementation 'com.vladsch.flexmark:flexmark-all:0.64.8'
+    implementation platform('com.oracle.oci.sdk:oci-java-sdk-bom:3.90.1')
+    implementation 'com.oracle.oci.sdk:oci-java-sdk-objectstorage'
+    implementation 'com.oracle.oci.sdk:oci-java-sdk-common-httpclient-jersey3'
+    implementation 'org.apache.tika:tika-core:3.2.3'
 
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
@@ -52,5 +56,18 @@ dependencies {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'oci-integration'
+    }
+}
+
+tasks.register('ociIntegrationTest', Test) {
+    description = 'Runs manual OCI Object Storage integration tests.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'oci-integration'
+    }
+    shouldRunAfter tasks.named('test')
 }
