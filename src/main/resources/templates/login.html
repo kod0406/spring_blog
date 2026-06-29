@@ -1,65 +1,35 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>로그인 - JWT Blog</title>
     <th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block>
 </head>
-<body class="bg-light">
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
 <div th:replace="~{fragments/common :: authNavbar('login')}"></div>
-
-<main class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-5">
-            <div class="card">
-                <div class="card-header"><h1 class="h4 text-center mb-0">로그인</h1></div>
-                <div class="card-body">
-                    <div th:replace="~{fragments/common :: flash}"></div>
-
-                    <form th:action="@{/login}" method="post" th:object="${loginDto}">
-                        <input type="hidden" id="returnUrl" name="returnUrl" th:value="${returnUrl}">
-                        <div class="mb-3">
-                            <label for="email" class="form-label">이메일</label>
-                            <input type="email" class="form-control" id="email" th:field="*{email}" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">비밀번호</label>
-                            <input type="password" class="form-control" id="password" th:field="*{password}" required>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">로그인</button>
-                        </div>
-                    </form>
-
-                    <div class="text-center mt-3">
-                        <p><a href="/reset-password">계정 찾기 / 비밀번호 재설정</a></p>
-                        <p>계정이 없으신가요? <a href="/register">회원가입</a></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+<main id="main-content" class="container auth-shell">
+    <section class="auth-card" aria-labelledby="login-heading">
+        <header class="auth-card-header"><div class="auth-mark" aria-hidden="true">J</div><h1 id="login-heading">다시 오신 것을 환영합니다</h1><p>계정으로 로그인해 글과 댓글을 관리하세요.</p></header>
+        <div th:replace="~{fragments/common :: flash}"></div>
+        <form th:action="@{/login}" method="post" th:object="${loginDto}">
+            <input type="hidden" id="returnUrl" name="returnUrl" th:value="${returnUrl}">
+            <div class="mb-3"><label for="email" class="form-label">이메일</label><input type="email" class="form-control" id="email" th:field="*{email}" autocomplete="email" required></div>
+            <div class="mb-3"><label for="password" class="form-label">비밀번호</label><input type="password" class="form-control" id="password" th:field="*{password}" autocomplete="current-password" required></div>
+            <div class="d-grid"><button type="submit" class="btn btn-primary">로그인</button></div>
+        </form>
+        <div class="auth-links"><p><a href="/reset-password">계정 찾기 · 비밀번호 재설정</a></p><p>계정이 없으신가요? <a href="/register">회원가입</a></p></div>
+    </section>
 </main>
-
+<th:block th:replace="~{fragments/common :: footer}"></th:block>
 <th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
 <script>
     const returnUrl = document.getElementById('returnUrl').value;
-    if (returnUrl
-        && returnUrl !== '/posts'
-        && returnUrl.startsWith('/')
-        && !returnUrl.startsWith('//')
-        && !returnUrl.includes('\\')) {
-        fetch('/api/user/token/refresh', {
-            method: 'POST',
-            credentials: 'same-origin'
-        }).then(response => {
-            if (response.ok) {
-                window.location.replace(returnUrl);
-            }
-        }).catch(() => {
-            // Refresh 실패 시 로그인 폼을 그대로 사용한다.
-        });
+    if (returnUrl && returnUrl !== '/posts' && returnUrl.startsWith('/') && !returnUrl.startsWith('//') && !returnUrl.includes('\\')) {
+        fetch('/api/user/token/refresh', {method: 'POST', credentials: 'same-origin'})
+            .then(response => { if (response.ok) window.location.replace(returnUrl); })
+            .catch(() => { /* 로그인 폼을 그대로 사용한다. */ });
     }
 </script>
 </body>

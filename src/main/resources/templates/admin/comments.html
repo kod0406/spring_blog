@@ -1,57 +1,24 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>댓글 관리 - JWT Blog</title>
-    <th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block>
-    <th:block th:replace="~{fragments/common :: baseStyle}"></th:block>
-</head>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>댓글 관리 - JWT Blog</title><th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block></head>
 <body>
-<div th:replace="~{fragments/common :: adminNavbar('comments')}"></div>
-<main class="container py-4">
-    <div th:replace="~{fragments/common :: flash}"></div>
-    <h1 class="h3 mb-3">댓글 관리</h1>
-    <form class="row g-2 mb-3" method="get" action="/admin/comments">
-        <div class="col-md-2">
-            <input class="form-control" type="number" name="postId" th:value="${postId}" placeholder="글 ID">
-        </div>
-        <div class="col-md-2">
-            <input class="form-control" name="author" th:value="${author}" placeholder="작성자">
-        </div>
-        <div class="col-md-2">
-            <select class="form-select" name="deleted">
-                <option value="" th:selected="${deleted == null}">삭제 여부 전체</option>
-                <option value="false" th:selected="${deleted == false}">일반 댓글</option>
-                <option value="true" th:selected="${deleted == true}">삭제된 댓글</option>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <input class="form-control" name="keyword" th:value="${keyword}" placeholder="키워드">
-        </div>
-        <div class="col-md-2">
-            <button class="btn btn-outline-primary w-100" type="submit">필터</button>
-        </div>
-    </form>
-    <div class="bg-white border rounded p-3">
-        <div th:if="${comments.size() == 0}" class="text-muted">댓글이 없습니다.</div>
-        <div th:each="comment : ${comments}" class="border-bottom py-3">
-            <div class="d-flex justify-content-between">
-                <div>
-                    <div class="small text-muted">
-                        글 #<span th:text="${comment.postId}">0</span>
-                        · 댓글 #<span th:text="${comment.commentId}">0</span>
-                        · <span th:text="${comment.authorName}">작성자</span>
-                    </div>
-                    <div th:text="${comment.content}">내용</div>
-                </div>
-                <form th:if="${!comment.deleted}" th:action="@{/admin/comments/{id}/delete(id=${comment.commentId})}" method="post">
-                    <button class="btn btn-outline-danger btn-sm" type="submit">삭제</button>
-                </form>
-            </div>
-        </div>
-    </div>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a><div th:replace="~{fragments/common :: adminNavbar('comments')}"></div>
+<main id="main-content" class="container site-main"><div th:replace="~{fragments/common :: flash}"></div>
+    <header class="page-heading"><span class="eyebrow">Discussion</span><h1>댓글 관리</h1><p>게시글과 작성자, 삭제 상태를 기준으로 댓글을 확인합니다.</p></header>
+    <form class="filter-card" method="get" action="/admin/comments" role="search"><div class="row g-2">
+        <div class="col-sm-6 col-lg-2"><label class="filter-label" for="postId">글 ID</label><input class="form-control" id="postId" type="number" name="postId" th:value="${postId}" placeholder="예: 12"></div>
+        <div class="col-sm-6 col-lg-2"><label class="filter-label" for="author">작성자</label><input class="form-control" id="author" name="author" th:value="${author}" placeholder="이름 또는 이메일"></div>
+        <div class="col-sm-6 col-lg-2"><label class="filter-label" for="deleted">삭제 상태</label><select class="form-select" id="deleted" name="deleted"><option value="" th:selected="${deleted == null}">전체</option><option value="false" th:selected="${deleted == false}">일반 댓글</option><option value="true" th:selected="${deleted == true}">삭제된 댓글</option></select></div>
+        <div class="col-sm-6 col-lg-4"><label class="filter-label" for="commentKeyword">키워드</label><input class="form-control" id="commentKeyword" name="keyword" th:value="${keyword}" placeholder="댓글 내용"></div>
+        <div class="col-lg-2 d-grid"><button class="btn btn-primary" type="submit">필터 적용</button></div>
+    </div></form>
+    <section class="admin-panel"><div class="admin-panel-header"><h2>댓글 목록</h2><span class="text-body-secondary small" th:text="${comments.size()} + '개'">0개</span></div>
+        <div th:if="${comments.size() == 0}" class="empty-state"><div class="empty-state-icon" aria-hidden="true">C</div><h2>조건에 맞는 댓글이 없습니다</h2><p>필터 조건을 변경해 보세요.</p></div>
+        <div th:if="${comments.size() > 0}" class="admin-list"><article th:each="comment : ${comments}" class="admin-item"><div class="d-flex justify-content-between gap-3">
+            <div><div class="admin-item-meta mb-2">글 #<span th:text="${comment.postId}">0</span> · 댓글 #<span th:text="${comment.commentId}">0</span> · <span th:text="${comment.authorName}">작성자</span></div><div th:text="${comment.content}">내용</div><span th:if="${comment.deleted}" class="badge-soft badge-draft mt-2">삭제됨</span></div>
+            <form th:if="${!comment.deleted}" th:action="@{/admin/comments/{id}/delete(id=${comment.commentId})}" method="post" data-confirm-title="댓글 삭제" data-confirm="이 댓글을 삭제하시겠습니까?" data-confirm-button="삭제"><button class="btn btn-outline-danger btn-sm" type="submit">삭제</button></form>
+        </div></article></div>
+    </section>
 </main>
-<th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
-</body>
-</html>
+<th:block th:replace="~{fragments/common :: footer}"></th:block><th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
+</body></html>

@@ -18,6 +18,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -44,7 +46,14 @@ class ThymeleafRenderSmokeTest {
     @Test
     void publicPagesRender() throws Exception {
         mockMvc.perform(get("/"))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("<html lang=\"ko\"")))
+                .andExpect(content().string(containsString("bootstrap@5.3.8")))
+                .andExpect(content().string(containsString("integrity=\"sha384-")))
+                .andExpect(content().string(containsString("/css/site.css")))
+                .andExpect(content().string(containsString("data-theme-toggle")))
+                .andExpect(content().string(containsString("reading-settings")))
+                .andExpect(content().string(containsString("navbar-toggler")));
         mockMvc.perform(get("/posts"))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/login"))
@@ -53,6 +62,23 @@ class ThymeleafRenderSmokeTest {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/reset-password"))
                 .andExpect(status().isOk());
+        mockMvc.perform(get("/email"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void designAssetsArePublic() throws Exception {
+        mockMvc.perform(get("/css/site.css"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("[data-bs-theme=\"dark\"]")))
+                .andExpect(content().string(containsString(".post-grid")))
+                .andExpect(content().string(containsString(".result-summary")))
+                .andExpect(content().string(containsString(".article-title { margin: .7rem 0 .8rem; font-family: var(--reader-font)")))
+                .andExpect(content().string(containsString(".toastui-editor-popup")));
+        mockMvc.perform(get("/js/site-preferences.js"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("jwt-blog.theme")))
+                .andExpect(content().string(containsString("storageAvailable")));
     }
 
     @Test
@@ -60,6 +86,13 @@ class ThymeleafRenderSmokeTest {
         User admin = userRepository.saveAndFlush(user("render-post-admin@example.com", UserRole.ADMIN));
         BoardDto.Response post = boardService.createBoard(new BoardDto.Request("Render Post", "Body"), admin);
 
+        mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("class=\"post-grid\"")));
+        mockMvc.perform(get("/posts"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("class=\"result-summary\"")))
+                .andExpect(content().string(containsString("class=\"result-list\"")));
         mockMvc.perform(get("/posts/{postId}", post.getPostId()))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/admin/posts/{postId}/edit", post.getPostId()).cookie(accessCookie(admin)))

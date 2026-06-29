@@ -1,52 +1,62 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="개발과 일상의 기록을 공유하는 JWT Blog">
     <title>JWT Blog</title>
     <th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block>
-    <th:block th:replace="~{fragments/common :: baseStyle}"></th:block>
-    <style>.post-title{text-decoration:none;color:#1f2937}.post-title:hover{color:#0d6efd}</style>
 </head>
 <body>
-<div th:replace="~{fragments/common :: navbar('home')}"></div>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<div th:replace="~{fragments/common :: navbar('home', true)}"></div>
 
-<main class="container py-4">
+<main id="main-content" class="container site-main">
     <div th:replace="~{fragments/common :: flash}"></div>
-    <section class="mb-4">
-        <h1 class="h3 mb-3">최근 글</h1>
-        <div class="mb-3">
-            <a class="btn btn-sm btn-dark me-1" href="/posts">전체</a>
-            <a th:each="category : ${categories}" class="btn btn-sm btn-outline-dark me-1"
-               th:href="@{/posts(category=${category.key})}"
-               th:text="${category.displayName}">글머리</a>
-        </div>
-    </section>
-    <section th:if="${posts.size() > 0}">
-        <article class="card mb-3" th:each="post, iter : ${posts}">
-            <div class="card-body">
-                <div th:if="${post.masked}" class="text-muted fst-italic">
-                    <span th:text="${iter.index + 1}">1</span>
-                    <span class="ms-2">(권한 없음)</span>
-                </div>
-                <div th:unless="${post.masked}">
-                    <div class="small text-muted mb-1" th:text="${post.categoryDisplayName}">미분류</div>
-                    <h2 class="h5"><a class="post-title" th:href="@{/posts/{id}(id=${post.postId})}" th:text="${post.title}">제목</a></h2>
-                    <p class="text-muted mb-2" th:text="${#strings.abbreviate(post.content, 140)}">요약</p>
-                    <small class="text-muted">
-                        <span th:text="${post.authorName}">작성자</span>
-                        ·
-                        <span th:text="${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}">작성일</span>
-                    </small>
-                </div>
+
+    <header class="editorial-page-header">
+        <span class="eyebrow">JWT Blog</span>
+        <h1 id="recent-heading">최근 글</h1>
+        <p>배운 것과 고민한 것을 기록하고, 다시 꺼내볼 수 있는 지식으로 정리합니다.</p>
+    </header>
+
+    <nav class="category-pills mb-4" aria-label="글머리별 글 보기">
+        <a class="category-pill active" href="/posts" aria-current="page">전체</a>
+        <a th:each="category : ${categories}" class="category-pill"
+           th:href="@{/posts(category=${category.key})}"
+           th:text="${category.displayName}">글머리</a>
+    </nav>
+
+    <section th:if="${posts.size() > 0}" class="post-grid" aria-labelledby="recent-heading">
+        <article class="post-card" th:each="post, iter : ${posts}" th:classappend="${post.masked} ? ' masked-card'">
+            <div class="post-card-visual" aria-hidden="true"></div>
+            <div class="post-card-body">
+                <th:block th:if="${post.masked}">
+                    <span class="badge-soft badge-private">PRIVATE</span>
+                    <h2 class="post-card-title">권한이 필요한 글입니다</h2>
+                    <p class="post-card-summary" th:text="${iter.index + 1} + '번째 게시글은 로그인 또는 권한 확인 후 읽을 수 있습니다.'">권한 안내</p>
+                </th:block>
+                <th:block th:unless="${post.masked}">
+                    <span class="badge-soft" th:text="${post.categoryDisplayName}">미분류</span>
+                    <h2 class="post-card-title"><a th:href="@{/posts/{id}(id=${post.postId})}" th:text="${post.title}">제목</a></h2>
+                    <p class="post-card-summary" th:text="${#strings.abbreviate(post.content, 150)}">요약</p>
+                    <div class="post-card-meta">
+                        <span th:text="${post.authorName}">작성자</span><span aria-hidden="true">·</span>
+                        <time th:datetime="${post.createdAt}" th:text="${#temporals.format(post.createdAt, 'yyyy.MM.dd')}">작성일</time>
+                    </div>
+                </th:block>
             </div>
         </article>
     </section>
-    <section th:if="${posts.size() == 0}" class="text-center bg-white border rounded p-5">
-        <h2 class="h5 text-muted">아직 공개된 글이 없습니다.</h2>
+
+    <section th:if="${posts.size() == 0}" class="empty-state">
+        <div class="empty-state-icon" aria-hidden="true">{ }</div>
+        <h2>아직 공개된 글이 없습니다</h2>
+        <p>새로운 기록이 올라오면 이곳에서 확인할 수 있습니다.</p>
     </section>
 </main>
 
+<th:block th:replace="~{fragments/common :: footer}"></th:block>
 <th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
 </body>
 </html>

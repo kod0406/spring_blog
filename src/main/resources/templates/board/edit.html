@@ -1,62 +1,64 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title th:text="${draft} ? '새 글 - JWT Blog' : '글 수정 - JWT Blog'">글 편집 - JWT Blog</title>
     <th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block>
     <th:block th:replace="~{fragments/common :: toastEditorCss}"></th:block>
-    <th:block th:replace="~{fragments/common :: baseStyle}"></th:block>
 </head>
 <body>
-<div th:replace="~{fragments/common :: navbar('write')}"></div>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<div th:replace="~{fragments/common :: navbar('write', false)}"></div>
 
-<main class="container py-4">
+<main id="main-content" class="container site-main">
     <div th:replace="~{fragments/common :: flash}"></div>
-    <section class="bg-white border rounded p-4">
-        <div class="d-flex align-items-center gap-2 mb-4">
-            <h1 class="h3 mb-0" th:text="${draft} ? '새 글 쓰기' : '글 수정'">글 편집</h1>
-            <span th:if="${draft}" class="badge bg-info text-dark">초안</span>
+    <section class="editor-card">
+        <div class="editor-toolbar">
+            <div><span class="eyebrow">Editor</span><h1 class="h3 fw-bold mb-0" th:text="${draft} ? '새 글 쓰기' : '글 수정'">글 편집</h1></div>
+            <span th:if="${draft}" class="badge-soft badge-draft">초안</span>
         </div>
-        <div id="uploadMessage" class="alert d-none" role="alert"></div>
+        <div id="uploadMessage" class="inline-message" role="status" aria-live="polite"></div>
         <form th:action="@{/admin/posts/{id}/edit(id=${postId})}" method="post" th:object="${boardDto}" id="postForm">
             <input type="hidden" th:field="*{contentMarkdown}" id="contentMarkdown">
             <input type="hidden" id="postId" th:value="${postId}">
             <div class="mb-3">
                 <label for="title" class="form-label">제목</label>
-                <input type="text" class="form-control" id="title" th:field="*{title}" maxlength="200" th:required="${!draft}">
+                <input type="text" class="form-control form-control-lg" id="title" th:field="*{title}" maxlength="200" th:required="${!draft}" placeholder="글 제목을 입력하세요">
             </div>
-            <div class="row">
-                <div class="col-md-8 mb-3">
+            <div class="row g-3">
+                <div class="col-md-8">
                     <label for="categoryKey" class="form-label">글머리</label>
                     <select class="form-select" id="categoryKey" th:field="*{categoryKey}">
                         <option value="">미분류</option>
-                        <option th:each="category : ${categories}" th:value="${category.key}"
-                                th:text="${category.displayName + ' - ' + category.visibility}">글머리</option>
+                        <option th:each="category : ${categories}" th:value="${category.key}" th:text="${category.displayName + ' - ' + category.visibility}">글머리</option>
                     </select>
                 </div>
-                <div class="col-md-4 mb-3 d-flex align-items-end">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" th:field="*{published}" id="published">
-                        <label class="form-check-label" for="published">공개</label>
+                <div class="col-md-4 d-flex align-items-end pb-2">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" th:field="*{published}" id="published">
+                        <label class="form-check-label" for="published">공개 게시</label>
                     </div>
                 </div>
             </div>
-            <div class="mb-3">
-                <label class="form-label">본문</label>
-                <div class="d-flex gap-2 mb-2">
-                    <input type="file" class="form-control form-control-sm" id="videoFile" accept="video/mp4,video/webm">
-                    <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" id="videoUploadButton">영상 삽입</button>
+            <div class="mt-4 mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-2">
+                    <label class="form-label mb-0" id="editorLabel">본문</label>
+                    <div class="d-flex flex-grow-1 flex-sm-grow-0 gap-2">
+                        <label class="visually-hidden" for="videoFile">삽입할 영상</label>
+                        <input type="file" class="form-control form-control-sm" id="videoFile" accept="video/mp4,video/webm">
+                        <button type="button" class="btn btn-outline-secondary btn-sm text-nowrap" id="videoUploadButton">영상 삽입</button>
+                    </div>
                 </div>
-                <div id="editor"></div>
+                <div id="editor" aria-labelledby="editorLabel"></div>
             </div>
-            <div class="d-flex justify-content-between gap-2">
+            <div class="d-flex flex-wrap justify-content-between gap-2 pt-2">
                 <button th:if="${draft}" type="submit" class="btn btn-outline-danger"
-                        th:formaction="@{/admin/posts/{id}/cancel(id=${postId})}" formmethod="post" formnovalidate>취소</button>
-                <a th:if="${!draft}" th:href="@{/posts/{id}(id=${postId})}" class="btn btn-outline-secondary">취소</a>
+                        th:formaction="@{/admin/posts/{id}/cancel(id=${postId})}" formmethod="post" formnovalidate
+                        data-confirm-title="초안 취소" data-confirm="작성 중인 초안을 삭제하시겠습니까?" data-confirm-button="초안 삭제">초안 취소</button>
+                <a th:if="${!draft}" th:href="@{/posts/{id}(id=${postId})}" class="btn btn-outline-secondary">돌아가기</a>
                 <div class="d-flex gap-2 ms-auto">
-                    <button type="submit" class="btn btn-outline-primary"
-                            th:formaction="@{/admin/posts/{id}/draft(id=${postId})}" formmethod="post" formnovalidate>임시 저장</button>
+                    <button type="submit" class="btn btn-outline-primary" th:formaction="@{/admin/posts/{id}/draft(id=${postId})}" formmethod="post" formnovalidate>임시 저장</button>
                     <button type="submit" class="btn btn-primary" th:text="${draft} ? '게시' : '저장'">저장</button>
                 </div>
             </div>
@@ -64,6 +66,7 @@
     </section>
 </main>
 
+<th:block th:replace="~{fragments/common :: footer}"></th:block>
 <th:block th:replace="~{fragments/common :: toastEditorScript}"></th:block>
 <script th:inline="javascript">
     const postId = Number(/*[[${postId}]]*/ 0);
@@ -71,10 +74,10 @@
     const messageBox = document.getElementById('uploadMessage');
     const editor = new toastui.Editor({
         el: document.querySelector('#editor'),
-        height: '520px',
+        height: '560px',
         initialValue: initialContent || '',
         initialEditType: 'markdown',
-        previewStyle: 'vertical',
+        previewStyle: window.innerWidth < 992 ? 'tab' : 'vertical',
         hooks: {
             addImageBlobHook: async (blob, callback) => {
                 const result = await uploadMedia('/api/admin/uploads/images', blob);
@@ -85,42 +88,34 @@
 
     document.getElementById('videoUploadButton').addEventListener('click', async () => {
         const input = document.getElementById('videoFile');
-        if (!input.files.length) return;
+        if (!input.files.length) { showUploadMessage('삽입할 영상 파일을 선택해 주세요.', 'error'); return; }
         const result = await uploadMedia('/api/admin/uploads/videos', input.files[0]);
-        if (result) {
-            editor.insertText(`\n![video](${result.url})\n`);
-            input.value = '';
-        }
+        if (result) { editor.insertText(`\n![video](${result.url})\n`); input.value = ''; }
     });
 
     async function uploadMedia(url, file) {
         const formData = new FormData();
         formData.append('postId', String(postId));
         formData.append('file', file);
+        showUploadMessage('미디어를 업로드하는 중입니다.', 'success');
         try {
             const response = await fetch(url, {method: 'POST', body: formData});
             const payload = await responsePayload(response);
             if (!response.ok || !payload.json || !payload.json.success) {
-                showUploadMessage(messageForStatus(response.status, payload), 'danger');
+                showUploadMessage(messageForStatus(response.status, payload), 'error');
                 return null;
             }
             showUploadMessage('미디어가 업로드되었습니다.', 'success');
             return payload.json.data;
         } catch (error) {
-            showUploadMessage('미디어 업로드 중 네트워크 오류가 발생했습니다.', 'danger');
+            showUploadMessage('미디어 업로드 중 네트워크 오류가 발생했습니다.', 'error');
             return null;
         }
     }
-
     async function responsePayload(response) {
         const text = await response.text();
-        try {
-            return {json: text ? JSON.parse(text) : null, text};
-        } catch (error) {
-            return {json: null, text};
-        }
+        try { return {json: text ? JSON.parse(text) : null, text}; } catch (error) { return {json: null, text}; }
     }
-
     function messageForStatus(status, payload) {
         if (payload.json && payload.json.message) return payload.json.message;
         if (status === 400) return '파일 형식과 입력값을 확인해 주세요.';
@@ -130,12 +125,10 @@
         if (status === 503) return '미디어 저장소를 사용할 수 없습니다.';
         return payload.text || '미디어 업로드에 실패했습니다.';
     }
-
     function showUploadMessage(message, type) {
-        messageBox.className = `alert alert-${type}`;
+        messageBox.className = `inline-message is-visible is-${type}`;
         messageBox.textContent = message;
     }
-
     document.getElementById('postForm').addEventListener('submit', () => {
         document.getElementById('contentMarkdown').value = editor.getMarkdown();
     });

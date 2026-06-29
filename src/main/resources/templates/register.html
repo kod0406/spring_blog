@@ -1,89 +1,50 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>회원가입 - JWT Blog</title>
     <th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block>
 </head>
-<body class="bg-light">
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
 <div th:replace="~{fragments/common :: authNavbar('register')}"></div>
-
-<main class="container py-5">
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header"><h1 class="h4 text-center mb-0">회원가입</h1></div>
-                <div class="card-body">
-                    <div th:replace="~{fragments/common :: flash}"></div>
-                    <div id="emailVerificationMessage" style="display:none;"></div>
-
-                    <form th:action="@{/register}" method="post" th:object="${registrationDto}">
-                        <div class="mb-3">
-                            <label for="name" class="form-label">이름</label>
-                            <input type="text" class="form-control" id="name" th:field="*{name}" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="email" class="form-label">이메일</label>
-                            <div class="input-group">
-                                <input type="email" class="form-control" id="email" th:field="*{email}" required>
-                                <button type="button" class="btn btn-outline-primary" id="sendVerificationBtn">인증코드 발송</button>
-                            </div>
-                            <div class="form-text">이메일 인증이 꺼져 있으면 인증 코드는 비워도 됩니다.</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="verificationCode" class="form-label">이메일 인증 코드</label>
-                            <input type="text" class="form-control" id="verificationCode" th:field="*{verificationCode}" placeholder="6자리 인증 코드">
-                        </div>
-                        <div class="mb-3">
-                            <label for="password" class="form-label">비밀번호</label>
-                            <input type="password" class="form-control" id="password" th:field="*{password}" required>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-primary">회원가입</button>
-                        </div>
-                    </form>
-
-                    <div class="text-center mt-3">
-                        <p>이미 계정이 있으신가요? <a href="/login">로그인</a></p>
-                    </div>
-                </div>
+<main id="main-content" class="container auth-shell">
+    <section class="auth-card" aria-labelledby="register-heading">
+        <header class="auth-card-header"><div class="auth-mark" aria-hidden="true">+</div><h1 id="register-heading">회원가입</h1><p>가입 후 관리자 승인을 받으면 댓글을 작성할 수 있습니다.</p></header>
+        <div th:replace="~{fragments/common :: flash}"></div>
+        <div id="emailVerificationMessage" class="inline-message" role="status" aria-live="polite"></div>
+        <form th:action="@{/register}" method="post" th:object="${registrationDto}">
+            <div class="mb-3"><label for="name" class="form-label">이름</label><input type="text" class="form-control" id="name" th:field="*{name}" autocomplete="name" required></div>
+            <div class="mb-3">
+                <label for="email" class="form-label">이메일</label>
+                <div class="input-group"><input type="email" class="form-control" id="email" th:field="*{email}" autocomplete="email" required><button type="button" class="btn btn-outline-primary" id="sendVerificationBtn">인증코드 발송</button></div>
+                <div class="form-text">이메일 인증이 비활성화된 환경에서는 인증 코드를 비워둘 수 있습니다.</div>
             </div>
-        </div>
-    </div>
+            <div class="mb-3"><label for="verificationCode" class="form-label">이메일 인증 코드</label><input type="text" class="form-control" id="verificationCode" th:field="*{verificationCode}" inputmode="numeric" autocomplete="one-time-code" placeholder="6자리 인증 코드"></div>
+            <div class="mb-3"><label for="password" class="form-label">비밀번호</label><input type="password" class="form-control" id="password" th:field="*{password}" autocomplete="new-password" required></div>
+            <div class="d-grid"><button type="submit" class="btn btn-primary">회원가입</button></div>
+        </form>
+        <div class="auth-links"><p>이미 계정이 있으신가요? <a href="/login">로그인</a></p></div>
+    </section>
 </main>
-
+<th:block th:replace="~{fragments/common :: footer}"></th:block>
 <th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
 <script>
     document.getElementById('sendVerificationBtn').addEventListener('click', async function() {
         const email = document.getElementById('email').value.trim();
-        if (!email) {
-            showMessage('이메일을 입력해 주세요.', 'danger');
-            return;
-        }
-        this.disabled = true;
-        this.textContent = '발송 중...';
+        if (!email) { showMessage('이메일을 입력해 주세요.', 'error'); return; }
+        this.disabled = true; this.textContent = '발송 중…';
         try {
-            const res = await fetch('/email/send-verification', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({email})
-            });
-            const data = await res.json();
-            showMessage(data.message || '인증 코드가 발송되었습니다.', data.status === 'success' ? 'success' : 'danger');
-        } catch (error) {
-            showMessage('인증 코드 발송에 실패했습니다.', 'danger');
-        } finally {
-            this.disabled = false;
-            this.textContent = '인증코드 발송';
-        }
+            const response = await fetch('/email/send-verification', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email})});
+            const data = await response.json();
+            showMessage(data.message || '인증 코드가 발송되었습니다.', response.ok && data.status === 'success' ? 'success' : 'error');
+        } catch (error) { showMessage('인증 코드 발송에 실패했습니다.', 'error'); }
+        finally { this.disabled = false; this.textContent = '인증코드 발송'; }
     });
-
     function showMessage(message, type) {
-        const messageDiv = document.getElementById('emailVerificationMessage');
-        messageDiv.className = `alert alert-${type}`;
-        messageDiv.textContent = message;
-        messageDiv.style.display = 'block';
+        const element = document.getElementById('emailVerificationMessage');
+        element.className = `inline-message is-visible is-${type}`;
+        element.textContent = message;
     }
 </script>
 </body>

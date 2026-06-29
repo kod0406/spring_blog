@@ -1,174 +1,45 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JWT 동아리 세션 - 이메일 테스트</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .email-section {
-            margin-bottom: 30px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        .email-section h2 {
-            color: #4CAF50;
-            margin-top: 0;
-        }
-        input[type="email"] {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            margin: 10px 0;
-            box-sizing: border-box;
-        }
-        button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 5px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        .verification-btn {
-            background-color: #FF6B6B;
-        }
-        .verification-btn:hover {
-            background-color: #ff5252;
-        }
-        .html-btn {
-            background-color: #2196F3;
-        }
-        .html-btn:hover {
-            background-color: #1976D2;
-        }
-        .result {
-            margin-top: 15px;
-            padding: 10px;
-            border-radius: 5px;
-            display: none;
-        }
-        .success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-    </style>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이메일 발송 테스트 - JWT Blog</title>
+    <th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block>
 </head>
 <body>
-    <div class="container">
-        <h1>🚀 JWT 동아리 세션 - 이메일 발송 테스트</h1>
-
-        <!-- 간단한 텍스트 메일 -->
-        <div class="email-section">
-            <h2>📧 간단한 텍스트 메일 발송</h2>
-            <p>기본적인 텍스트 메일을 발송합니다.</p>
-            <input type="email" id="simple-email" placeholder="이메일 주소를 입력하세요" required>
-            <button id="simple-button">간단한 메일 발송</button>
-            <div id="simple-result" class="result"></div>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<div th:replace="~{fragments/common :: authNavbar('email')}"></div>
+<main id="main-content" class="container site-main">
+    <header class="page-heading"><span class="eyebrow">Development Tool</span><h1>이메일 발송 테스트</h1><p>개발 환경에서 텍스트·HTML 메일 전송 상태를 확인합니다.</p></header>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <section class="admin-panel h-100"><div class="admin-panel-header"><h2>텍스트 메일</h2><span class="badge-soft">TEXT</span></div><p class="text-body-secondary">기본 텍스트 형식의 테스트 메일을 발송합니다.</p>
+                <form data-email-test data-url="/email/send-simple"><label class="form-label" for="simple-email">받는 이메일</label><input class="form-control mb-3" type="email" id="simple-email" name="email" required><button class="btn btn-primary" type="submit">텍스트 메일 발송</button><div class="inline-message mt-3" role="status" aria-live="polite"></div></form>
+            </section>
         </div>
-
-        <!-- HTML 메일 -->
-        <div class="email-section">
-            <h2>🎨 HTML 메일 발송</h2>
-            <p>HTML 형식으로 꾸며진 메일을 발송합니다.</p>
-            <input type="email" id="html-email" placeholder="이메일 주소를 입력하세요" required>
-            <button id="html-button" class="html-btn">HTML 메일 발송</button>
-            <div id="html-result" class="result"></div>
+        <div class="col-md-6">
+            <section class="admin-panel h-100"><div class="admin-panel-header"><h2>HTML 메일</h2><span class="badge-soft badge-private">HTML</span></div><p class="text-body-secondary">HTML 형식이 적용된 테스트 메일을 발송합니다.</p>
+                <form data-email-test data-url="/email/send-html"><label class="form-label" for="html-email">받는 이메일</label><input class="form-control mb-3" type="email" id="html-email" name="email" required><button class="btn btn-primary" type="submit">HTML 메일 발송</button><div class="inline-message mt-3" role="status" aria-live="polite"></div></form>
+            </section>
         </div>
-
-        <!-- 인증번호 메일 -->
-
     </div>
-
-    <script type="text/javascript">
-        $(document).ready(function () {
-
-            // 간단한 텍스트 메일 발송
-            $("#simple-button").click(function () {
-                var email = $("#simple-email").val();
-                if (!email) {
-                    alert("이메일 주소를 입력해주세요.");
-                    return;
-                }
-
-                sendEmail("/email/send-simple", {email: email}, "#simple-result");
-            });
-
-            // HTML 메일 발송
-            $("#html-button").click(function () {
-                var email = $("#html-email").val();
-                if (!email) {
-                    alert("이메일 주소를 입력해주세요.");
-                    return;
-                }
-
-                sendEmail("/email/send-html", {email: email}, "#html-result");
-            });
-
-            // 공통 메일 발송 함수
-            function sendEmail(url, data, resultSelector) {
-                $(resultSelector).hide();
-
-                $.ajax({
-                    type: "POST",
-                    url: url,
-                    contentType: "application/json",
-                    data: JSON.stringify(data),
-                    success: function (response) {
-                        var resultText = "✅ " + response.message;
-
-                        $(resultSelector)
-                            .removeClass("error")
-                            .addClass("success")
-                            .html(resultText)
-                            .fadeIn();
-                    },
-                    error: function (xhr) {
-                        var errorMessage = "❌ 메일 발송에 실패했습니다.";
-
-                        if (xhr.responseJSON && xhr.responseJSON.message) {
-                            errorMessage = "❌ " + xhr.responseJSON.message;
-                        }
-
-                        $(resultSelector)
-                            .removeClass("success")
-                            .addClass("error")
-                            .html(errorMessage)
-                            .fadeIn();
-                    }
-                });
-            }
-        });
-    </script>
+</main>
+<th:block th:replace="~{fragments/common :: footer}"></th:block>
+<th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
+<script>
+    document.querySelectorAll('[data-email-test]').forEach(form => form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const button = form.querySelector('button');
+        const result = form.querySelector('.inline-message');
+        const email = form.elements.email.value.trim();
+        button.disabled = true; button.textContent = '발송 중…';
+        try {
+            const response = await fetch(form.dataset.url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email})});
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.message || '메일 발송에 실패했습니다.');
+            result.className = 'inline-message is-visible is-success mt-3'; result.textContent = payload.message || '메일을 발송했습니다.';
+        } catch (error) { result.className = 'inline-message is-visible is-error mt-3'; result.textContent = error.message || '메일 발송에 실패했습니다.'; }
+        finally { button.disabled = false; button.textContent = form.dataset.url.endsWith('html') ? 'HTML 메일 발송' : '텍스트 메일 발송'; }
+    }));
+</script>
 </body>
 </html>

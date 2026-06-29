@@ -1,23 +1,18 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>관리 - JWT Blog</title>
-    <th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block>
-    <th:block th:replace="~{fragments/common :: baseStyle}"></th:block>
-</head>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>관리 - JWT Blog</title><th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block></head>
 <body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
 <div th:replace="~{fragments/common :: adminNavbar('dashboard')}"></div>
-<main class="container py-4">
-    <h1 class="h3 mb-4">관리 대시보드</h1>
-    <div class="row g-3">
-        <div class="col-md-3"><a class="card card-body text-decoration-none" href="/admin/posts"><strong th:text="${posts}">0</strong><span>글</span></a></div>
-        <div class="col-md-3"><a class="card card-body text-decoration-none" href="/admin/categories"><strong th:text="${categories}">0</strong><span>글머리</span></a></div>
-        <div class="col-md-3"><a class="card card-body text-decoration-none" href="/admin/users"><strong th:text="${users}">0</strong><span>회원</span></a></div>
-        <div class="col-md-3"><a class="card card-body text-decoration-none" href="/admin/comments"><strong th:text="${comments}">0</strong><span>댓글</span></a></div>
-    </div>
+<main id="main-content" class="container site-main">
+    <header class="page-heading"><span class="eyebrow">Overview</span><h1>관리 대시보드</h1><p>블로그 콘텐츠와 회원 현황을 한눈에 확인합니다.</p></header>
+    <section class="admin-stat-grid" aria-label="관리 현황">
+        <a class="admin-stat-card" href="/admin/posts"><span class="admin-stat-icon" aria-hidden="true">P</span><div><strong th:text="${posts}">0</strong><span class="d-block mt-2">전체 글</span></div></a>
+        <a class="admin-stat-card" href="/admin/categories"><span class="admin-stat-icon" aria-hidden="true">#</span><div><strong th:text="${categories}">0</strong><span class="d-block mt-2">글머리</span></div></a>
+        <a class="admin-stat-card" href="/admin/users"><span class="admin-stat-icon" aria-hidden="true">U</span><div><strong th:text="${users}">0</strong><span class="d-block mt-2">회원</span></div></a>
+        <a class="admin-stat-card" href="/admin/comments"><span class="admin-stat-icon" aria-hidden="true">C</span><div><strong th:text="${comments}">0</strong><span class="d-block mt-2">댓글</span></div></a>
+    </section>
+    <section class="admin-panel mt-4"><div class="admin-panel-header"><h2>빠른 작업</h2></div><div class="d-flex flex-wrap gap-2"><form th:action="@{/admin/posts/drafts}" method="post"><button class="btn btn-primary" type="submit">새 글 쓰기</button></form><a class="btn btn-outline-primary" href="/admin/categories">글머리 관리</a><a class="btn btn-outline-secondary" href="/posts">블로그 보기</a></div></section>
 </main>
-<th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
-</body>
-</html>
+<th:block th:replace="~{fragments/common :: footer}"></th:block><th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
+</body></html>

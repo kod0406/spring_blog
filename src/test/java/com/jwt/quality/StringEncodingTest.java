@@ -19,8 +19,11 @@ class StringEncodingTest {
     void mainJavaTemplatesAndReadmeDoNotContainKnownMojibakeMarkers() throws IOException {
         List<Path> files;
         try (Stream<Path> paths = Stream.concat(
-                Files.walk(Path.of("src/main/java")),
-                Files.walk(Path.of("src/main/resources/templates"))
+                Stream.concat(
+                        Files.walk(Path.of("src/main/java")),
+                        Files.walk(Path.of("src/main/resources/templates"))
+                ),
+                Files.walk(Path.of("src/main/resources/static"))
         )) {
             files = Stream.concat(paths, Stream.of(Path.of("README.md")))
                     .filter(Files::isRegularFile)

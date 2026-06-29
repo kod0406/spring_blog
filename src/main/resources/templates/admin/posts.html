@@ -1,108 +1,30 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>글 관리 - JWT Blog</title>
-    <th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block>
-    <th:block th:replace="~{fragments/common :: baseStyle}"></th:block>
-    <style>.post-title{text-decoration:none;color:#1f2937}</style>
-</head>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>글 관리 - JWT Blog</title><th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block></head>
 <body>
-<div th:replace="~{fragments/common :: adminNavbar('posts')}"></div>
-
-<main class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1 class="h3 mb-0">글 관리</h1>
-        <form th:action="@{/admin/posts/drafts}" method="post">
-            <button type="submit" class="btn btn-primary">새 글</button>
-        </form>
-    </div>
-
-    <form class="row g-2 mb-3 bg-white border rounded p-3" method="get" action="/admin/posts">
-        <div class="col-md-2">
-            <select class="form-select" name="visibility">
-                <option value="all" th:selected="${visibility == 'all'}">전체</option>
-                <option value="public" th:selected="${visibility == 'public'}">공개</option>
-                <option value="private" th:selected="${visibility == 'private'}">개인</option>
-                <option value="unpublished" th:selected="${visibility == 'unpublished'}">비공개 글</option>
-                <option value="draft" th:selected="${visibility == 'draft'}">초안</option>
-                <option value="uncategorized" th:selected="${visibility == 'uncategorized'}">미분류</option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <select class="form-select" name="category">
-                <option value="">모든 글머리</option>
-                <option th:each="category : ${categories}" th:value="${category.key}" th:selected="${selectedCategory == category.key}"
-                        th:text="${category.displayName + ' - ' + category.visibility}">글머리</option>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <input class="form-control" type="search" name="keyword" th:value="${keyword}" placeholder="검색어">
-        </div>
-        <div class="col-md-2">
-            <select class="form-select" name="searchType">
-                <option value="title_content" th:selected="${searchType == 'title_content'}">제목+본문</option>
-                <option value="title" th:selected="${searchType == 'title'}">제목</option>
-                <option value="content" th:selected="${searchType == 'content'}">본문</option>
-                <option value="comment" th:selected="${searchType == 'comment'}">댓글</option>
-                <option value="author" th:selected="${searchType == 'author'}">작성자</option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <select class="form-select" name="sort">
-                <option value="latest" th:selected="${sort == 'latest'}">최신순</option>
-                <option value="oldest" th:selected="${sort == 'oldest'}">오래된순</option>
-            </select>
-        </div>
-        <div class="col-md-1">
-            <button class="btn btn-outline-primary w-100" type="submit">검색</button>
-        </div>
-    </form>
-
-    <section th:if="${posts.content.size() > 0}">
-        <article class="card mb-2" th:each="post : ${posts.content}">
-            <div class="card-body d-flex justify-content-between gap-3">
-                <div>
-                    <div class="small text-muted">
-                        <span th:text="${post.categoryDisplayName}">미분류</span>
-                        <span th:if="${post.privatePost}" class="badge bg-secondary ms-1">PRIVATE</span>
-                        <span th:if="${!post.published}" class="badge bg-warning text-dark ms-1">비공개</span>
-                        <span th:if="${post.draft}" class="badge bg-info text-dark ms-1">초안</span>
-                    </div>
-                    <a class="post-title h5" th:href="@{/posts/{id}(id=${post.postId})}" th:text="${post.title}">제목</a>
-                    <div class="small text-muted mt-1">
-                        <span th:text="${post.authorName}">작성자</span>
-                        ·
-                        <span th:text="${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}">작성일</span>
-                    </div>
-                </div>
-                <div class="btn-group align-self-start">
-                    <a class="btn btn-outline-primary btn-sm" th:href="@{/admin/posts/{id}/edit(id=${post.postId})}">수정</a>
-                    <form th:action="@{/admin/posts/{id}/delete(id=${post.postId})}" method="post">
-                        <button class="btn btn-outline-danger btn-sm" type="submit">삭제</button>
-                    </form>
-                </div>
-            </div>
-        </article>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a><div th:replace="~{fragments/common :: adminNavbar('posts')}"></div>
+<main id="main-content" class="container site-main">
+    <header class="page-heading-row"><div class="page-heading mb-0"><span class="eyebrow">Content</span><h1>글 관리</h1><p>공개 상태와 글머리를 기준으로 게시글을 관리합니다.</p></div><form th:action="@{/admin/posts/drafts}" method="post"><button type="submit" class="btn btn-primary">새 글 쓰기</button></form></header>
+    <form class="filter-card" method="get" action="/admin/posts" role="search"><div class="row g-2">
+        <div class="col-md-6 col-xl-2"><label class="filter-label" for="visibility">공개 상태</label><select class="form-select" id="visibility" name="visibility"><option value="all" th:selected="${visibility == 'all'}">전체</option><option value="public" th:selected="${visibility == 'public'}">공개</option><option value="private" th:selected="${visibility == 'private'}">개인</option><option value="unpublished" th:selected="${visibility == 'unpublished'}">비공개 글</option><option value="draft" th:selected="${visibility == 'draft'}">초안</option><option value="uncategorized" th:selected="${visibility == 'uncategorized'}">미분류</option></select></div>
+        <div class="col-md-6 col-xl-2"><label class="filter-label" for="category">글머리</label><select class="form-select" id="category" name="category"><option value="">모든 글머리</option><option th:each="category : ${categories}" th:value="${category.key}" th:selected="${selectedCategory == category.key}" th:text="${category.displayName + ' - ' + category.visibility}">글머리</option></select></div>
+        <div class="col-md-6 col-xl-3"><label class="filter-label" for="adminKeyword">검색어</label><input class="form-control" id="adminKeyword" type="search" name="keyword" th:value="${keyword}" placeholder="검색어"></div>
+        <div class="col-md-6 col-xl-2"><label class="filter-label" for="adminSearchType">검색 범위</label><select class="form-select" id="adminSearchType" name="searchType"><option value="title_content" th:selected="${searchType == 'title_content'}">제목+본문</option><option value="title" th:selected="${searchType == 'title'}">제목</option><option value="content" th:selected="${searchType == 'content'}">본문</option><option value="comment" th:selected="${searchType == 'comment'}">댓글</option><option value="author" th:selected="${searchType == 'author'}">작성자</option></select></div>
+        <div class="col-md-6 col-xl-2"><label class="filter-label" for="adminSort">정렬</label><select class="form-select" id="adminSort" name="sort"><option value="latest" th:selected="${sort == 'latest'}">최신순</option><option value="oldest" th:selected="${sort == 'oldest'}">오래된순</option></select></div>
+        <div class="col-md-6 col-xl-1 d-grid"><button class="btn btn-primary" type="submit">검색</button></div>
+    </div></form>
+    <section th:if="${posts.content.size() > 0}" class="admin-list" aria-label="게시글 목록">
+        <article class="admin-item" th:each="post : ${posts.content}"><div class="d-flex justify-content-between gap-3">
+            <div class="min-w-0"><div class="d-flex flex-wrap gap-2 mb-2"><span class="badge-soft" th:text="${post.categoryDisplayName}">미분류</span><span th:if="${post.privatePost}" class="badge-soft badge-private">PRIVATE</span><span th:if="${!post.published}" class="badge-soft badge-draft">비공개</span><span th:if="${post.draft}" class="badge-soft badge-draft">초안</span></div><a class="admin-item-title" th:href="@{/posts/{id}(id=${post.postId})}" th:text="${post.title}">제목</a><div class="admin-item-meta mt-1"><span th:text="${post.authorName}">작성자</span> · <time th:datetime="${post.createdAt}" th:text="${#temporals.format(post.createdAt, 'yyyy.MM.dd HH:mm')}">작성일</time></div></div>
+            <div class="admin-item-actions"><a class="btn btn-outline-primary btn-sm" th:href="@{/admin/posts/{id}/edit(id=${post.postId})}">수정</a><form th:action="@{/admin/posts/{id}/delete(id=${post.postId})}" method="post" data-confirm-title="글 삭제" data-confirm="이 글을 삭제하시겠습니까? 연결된 미디어도 정리되며 복구할 수 없습니다." data-confirm-button="삭제"><button class="btn btn-outline-danger btn-sm" type="submit">삭제</button></form></div>
+        </div></article>
     </section>
-    <div th:if="${posts.content.size() == 0}" class="text-center bg-white border rounded p-5 text-muted">글이 없습니다.</div>
-
-    <nav th:if="${posts.totalPages > 1}" class="mt-4">
-        <ul class="pagination justify-content-center">
-            <li class="page-item" th:classappend="${posts.first} ? 'disabled'">
-                <a class="page-link" th:href="@{/admin/posts(page=${posts.number - 1},visibility=${visibility},category=${selectedCategory},keyword=${keyword},searchType=${searchType},sort=${sort})}">이전</a>
-            </li>
-            <li class="page-item" th:each="i : ${#numbers.sequence(0, posts.totalPages - 1)}" th:classappend="${i == posts.number} ? 'active'">
-                <a class="page-link" th:href="@{/admin/posts(page=${i},visibility=${visibility},category=${selectedCategory},keyword=${keyword},searchType=${searchType},sort=${sort})}" th:text="${i + 1}">1</a>
-            </li>
-            <li class="page-item" th:classappend="${posts.last} ? 'disabled'">
-                <a class="page-link" th:href="@{/admin/posts(page=${posts.number + 1},visibility=${visibility},category=${selectedCategory},keyword=${keyword},searchType=${searchType},sort=${sort})}">다음</a>
-            </li>
-        </ul>
-    </nav>
+    <section th:if="${posts.content.size() == 0}" class="empty-state"><div class="empty-state-icon" aria-hidden="true">P</div><h2>조건에 맞는 글이 없습니다</h2><p>필터를 변경하거나 새 글을 작성해 보세요.</p></section>
+    <nav th:if="${posts.totalPages > 1}" class="mt-4" aria-label="글 관리 페이지"><ul class="pagination justify-content-center">
+        <li class="page-item" th:classappend="${posts.first} ? 'disabled'"><span th:if="${posts.first}" class="page-link" aria-disabled="true">이전</span><a th:unless="${posts.first}" class="page-link" th:href="@{/admin/posts(page=${posts.number - 1},visibility=${visibility},category=${selectedCategory},keyword=${keyword},searchType=${searchType},sort=${sort})}">이전</a></li>
+        <li class="page-item" th:each="i : ${#numbers.sequence(0, posts.totalPages - 1)}" th:classappend="${i == posts.number} ? 'active'"><a class="page-link" th:href="@{/admin/posts(page=${i},visibility=${visibility},category=${selectedCategory},keyword=${keyword},searchType=${searchType},sort=${sort})}" th:text="${i + 1}" th:attr="aria-current=${i == posts.number} ? 'page'">1</a></li>
+        <li class="page-item" th:classappend="${posts.last} ? 'disabled'"><span th:if="${posts.last}" class="page-link" aria-disabled="true">다음</span><a th:unless="${posts.last}" class="page-link" th:href="@{/admin/posts(page=${posts.number + 1},visibility=${visibility},category=${selectedCategory},keyword=${keyword},searchType=${searchType},sort=${sort})}">다음</a></li>
+    </ul></nav>
 </main>
-
-<th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
-</body>
-</html>
+<th:block th:replace="~{fragments/common :: footer}"></th:block><th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
+</body></html>

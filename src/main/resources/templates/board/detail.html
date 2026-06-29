@@ -1,111 +1,211 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title th:text="${post.title} + ' - JWT Blog'">글 상세 - JWT Blog</title>
     <th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block>
-    <th:block th:replace="~{fragments/common :: baseStyle}"></th:block>
-    <style>.post-content{line-height:1.75;min-height:240px}.post-content video{max-width:100%;height:auto}.comment{border-left:3px solid #dee2e6;margin-top:.75rem;padding-left:.75rem}</style>
 </head>
 <body>
-<div th:replace="~{fragments/common :: navbar('home')}"></div>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<div th:replace="~{fragments/common :: navbar('posts', true)}"></div>
 
-<main class="container py-4">
+<main id="main-content" class="container site-main">
     <div th:replace="~{fragments/common :: flash}"></div>
-    <article class="bg-white border rounded p-4">
-        <div class="d-flex justify-content-between align-items-start gap-3 mb-3">
-            <div>
-                <div class="text-muted small mb-1">
-                    <span th:text="${post.categoryDisplayName}">미분류</span>
-                    <span th:if="${post.privatePost}" class="badge bg-secondary ms-1">PRIVATE</span>
-                    <span th:if="${!post.published}" class="badge bg-warning text-dark ms-1">비공개</span>
+    <div class="content-shell">
+        <article class="article-card">
+            <header class="article-header">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <span class="badge-soft" th:text="${post.categoryDisplayName}">미분류</span>
+                    <span th:if="${post.privatePost}" class="badge-soft badge-private">PRIVATE</span>
+                    <span th:if="${!post.published}" class="badge-soft badge-draft">비공개</span>
                 </div>
-                <h1 class="h2 mb-2" th:text="${post.title}">글 제목</h1>
-                <p class="text-muted mb-0">
-                    <span th:text="${post.authorName}">작성자</span>
-                    ·
-                    <span th:text="${#temporals.format(post.createdAt, 'yyyy-MM-dd HH:mm')}">작성일</span>
-                </p>
-            </div>
-            <div th:if="${isAdmin}" class="btn-group">
-                <a th:href="@{/admin/posts/{id}/edit(id=${post.postId})}" class="btn btn-outline-primary btn-sm">수정</a>
-                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">삭제</button>
-            </div>
-        </div>
-        <hr>
-        <div class="post-content" th:utext="${post.renderedContent}">글 내용</div>
-    </article>
+                <h1 class="article-title" th:text="${post.title}">글 제목</h1>
+                <div class="d-flex justify-content-between align-items-end gap-3 flex-wrap">
+                    <div class="article-meta">
+                        <span th:text="${post.authorName}">작성자</span><span aria-hidden="true">·</span>
+                        <time th:datetime="${post.createdAt}" th:text="${#temporals.format(post.createdAt, 'yyyy.MM.dd HH:mm')}">작성일</time>
+                    </div>
+                    <div th:if="${isAdmin}" class="d-flex gap-2">
+                        <a th:href="@{/admin/posts/{id}/edit(id=${post.postId})}" class="btn btn-outline-primary btn-sm">수정</a>
+                        <form th:action="@{/admin/posts/{id}/delete(id=${post.postId})}" method="post"
+                              data-confirm-title="글 삭제" data-confirm="삭제한 글과 연결된 미디어는 복구할 수 없습니다. 이 글을 삭제하시겠습니까?" data-confirm-button="삭제">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">삭제</button>
+                        </form>
+                    </div>
+                </div>
+            </header>
+            <div class="post-content" th:utext="${post.renderedContent}">글 내용</div>
+        </article>
 
-    <section class="bg-white border rounded p-4 mt-4">
-        <h2 class="h5">댓글</h2>
-        <div th:if="${canComment}" class="mb-3">
-            <textarea id="commentContent" class="form-control mb-2" rows="3" placeholder="댓글을 입력하세요"></textarea>
-            <button class="btn btn-primary btn-sm" onclick="createComment()">댓글 작성</button>
-        </div>
-        <div th:if="${!canComment}" class="text-muted small mb-3">댓글 작성 권한이 없습니다.</div>
-        <div id="comments"></div>
-    </section>
-    <div class="mt-4"><a href="/posts" class="btn btn-outline-secondary">목록</a></div>
+        <section class="comments-card" aria-labelledby="comments-heading">
+            <div class="comments-header"><h2 id="comments-heading">댓글</h2></div>
+            <form th:if="${canComment}" id="commentForm" class="mb-3">
+                <label for="commentContent" class="form-label">새 댓글</label>
+                <textarea id="commentContent" class="form-control mb-2" rows="3" maxlength="2000" placeholder="댓글을 입력하세요" required></textarea>
+                <div class="comment-form-actions"><button id="commentSubmit" class="btn btn-primary btn-sm" type="submit">댓글 작성</button></div>
+            </form>
+            <p th:if="${!canComment}" class="text-body-secondary small mb-3">승인된 회원만 댓글과 답글을 작성할 수 있습니다.</p>
+            <div id="commentStatus" class="comment-status" role="status" aria-live="polite">댓글을 불러오는 중입니다.</div>
+            <div id="comments" aria-live="polite"></div>
+        </section>
+
+        <div class="mt-4"><a href="/posts" class="btn btn-outline-secondary">글 목록으로</a></div>
+    </div>
 </main>
 
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog"><div class="modal-content">
-        <div class="modal-header"><h5 class="modal-title">글 삭제</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-        <div class="modal-body">이 글을 삭제하시겠습니까?</div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-            <form th:action="@{/admin/posts/{id}/delete(id=${post.postId})}" method="post"><button type="submit" class="btn btn-danger">삭제</button></form>
-        </div>
-    </div></div>
-</div>
-
+<th:block th:replace="~{fragments/common :: footer}"></th:block>
 <script th:inline="javascript">
-    const postId = /*[[${post.postId}]]*/ 0;
-    const canComment = /*[[${canComment}]]*/ false;
-    async function loadComments() {
-        const res = await fetch(`/api/posts/${postId}/comments`);
-        const json = await res.json();
-        renderComments(document.getElementById('comments'), json.data || []);
-    }
-    function renderComments(container, comments) {
-        container.innerHTML = '';
-        comments.forEach(comment => container.appendChild(commentNode(comment)));
-    }
-    function commentNode(comment) {
-        const div = document.createElement('div');
-        div.className = 'comment';
-        div.style.marginLeft = `${Math.min(comment.depth, 12) * 18}px`;
-        div.innerHTML = `<div class="small text-muted">${escapeHtml(comment.authorName)} · ${comment.createdAt || ''}</div>
-            <div>${escapeHtml(comment.content)}</div>
-            ${canComment ? `<button class="btn btn-link btn-sm p-0" onclick="replyTo(${comment.commentId})">답글</button>` : ''}
-            <div id="reply-${comment.commentId}"></div>`;
-        (comment.children || []).forEach(child => div.appendChild(commentNode(child)));
-        return div;
-    }
-    async function createComment() {
-        const input = document.getElementById('commentContent');
-        await postComment(`/api/posts/${postId}/comments`, input.value);
-        input.value = '';
+    (() => {
+        const postId = /*[[${post.postId}]]*/ 0;
+        const canComment = /*[[${canComment}]]*/ false;
+        const commentsContainer = document.getElementById('comments');
+        const statusElement = document.getElementById('commentStatus');
+        const commentForm = document.getElementById('commentForm');
+        const commentInput = document.getElementById('commentContent');
+        const commentSubmit = document.getElementById('commentSubmit');
+        let commentSubmitting = false;
+
+        function setStatus(message, error = false) {
+            statusElement.textContent = message;
+            statusElement.classList.toggle('is-error', error);
+        }
+
+        async function loadComments() {
+            setStatus('댓글을 불러오는 중입니다.');
+            try {
+                const response = await fetch(`/api/posts/${postId}/comments`, {credentials: 'same-origin'});
+                const payload = await response.json();
+                if (!response.ok || !payload.success) throw new Error(payload.message || '댓글을 불러오지 못했습니다.');
+                const comments = payload.data || [];
+                renderComments(comments);
+                setStatus(comments.length ? '' : '아직 댓글이 없습니다. 첫 댓글을 남겨보세요.');
+            } catch (error) {
+                commentsContainer.replaceChildren();
+                setStatus(error.message || '댓글을 불러오지 못했습니다.', true);
+            }
+        }
+
+        function renderComments(comments) {
+            commentsContainer.replaceChildren(...comments.map(comment => commentNode(comment)));
+        }
+
+        function commentNode(comment) {
+            const article = document.createElement('article');
+            article.className = 'comment';
+            article.style.marginLeft = `${Math.min(Number(comment.depth) || 0, 6) * 16}px`;
+
+            const meta = document.createElement('div');
+            meta.className = 'comment-meta';
+            meta.textContent = `${comment.authorName || '사용자'} · ${comment.createdAt || ''}`;
+            const content = document.createElement('div');
+            content.textContent = comment.content || '';
+            article.append(meta, content);
+
+            if (canComment) {
+                const actions = document.createElement('div');
+                actions.className = 'comment-actions';
+                const replyButton = document.createElement('button');
+                replyButton.type = 'button';
+                replyButton.className = 'btn btn-link btn-sm p-0';
+                replyButton.textContent = '답글';
+                const replyTarget = document.createElement('div');
+                replyButton.addEventListener('click', () => showReplyForm(replyTarget, comment.commentId, replyButton));
+                actions.append(replyButton);
+                article.append(actions, replyTarget);
+            }
+
+            (comment.children || []).forEach(child => article.appendChild(commentNode(child)));
+            return article;
+        }
+
+        function showReplyForm(target, commentId, trigger) {
+            target.replaceChildren();
+            const form = document.createElement('form');
+            form.className = 'mt-2';
+            const label = document.createElement('label');
+            label.className = 'visually-hidden';
+            label.textContent = '답글 내용';
+            const textarea = document.createElement('textarea');
+            textarea.className = 'form-control form-control-sm mb-2';
+            textarea.rows = 2;
+            textarea.maxLength = 2000;
+            textarea.required = true;
+            label.htmlFor = `reply-input-${commentId}`;
+            textarea.id = label.htmlFor;
+            const buttons = document.createElement('div');
+            buttons.className = 'd-flex gap-2';
+            const submit = document.createElement('button');
+            submit.type = 'submit';
+            submit.className = 'btn btn-primary btn-sm';
+            submit.textContent = '답글 작성';
+            const cancel = document.createElement('button');
+            cancel.type = 'button';
+            cancel.className = 'btn btn-outline-secondary btn-sm';
+            cancel.textContent = '취소';
+            cancel.addEventListener('click', () => { target.replaceChildren(); trigger.focus(); });
+            buttons.append(submit, cancel);
+            form.append(label, textarea, buttons);
+            let replySubmitting = false;
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                if (replySubmitting) return;
+                replySubmitting = true;
+                submit.disabled = true;
+                submit.textContent = '등록 중…';
+                if (await postComment(`/api/comments/${commentId}/replies`, textarea.value)) {
+                    await loadComments();
+                } else {
+                    replySubmitting = false;
+                    submit.disabled = false;
+                    submit.textContent = '답글 작성';
+                }
+            });
+            target.append(form);
+            textarea.focus();
+        }
+
+        async function postComment(url, content) {
+            const normalized = content.trim();
+            if (!normalized) { setStatus('댓글 내용을 입력해 주세요.', true); return false; }
+            setStatus('댓글을 등록하는 중입니다.');
+            try {
+                const response = await fetch(url, {
+                    method: 'POST', credentials: 'same-origin',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({content: normalized})
+                });
+                const payload = await response.json();
+                if (!response.ok || !payload.success) throw new Error(payload.message || '댓글 등록에 실패했습니다.');
+                setStatus('댓글이 등록되었습니다.');
+                return true;
+            } catch (error) {
+                setStatus(error.message || '댓글 등록에 실패했습니다.', true);
+                return false;
+            }
+        }
+
+        if (commentForm) {
+            commentForm.addEventListener('submit', async event => {
+                event.preventDefault();
+                if (commentSubmitting) return;
+                commentSubmitting = true;
+                commentSubmit.disabled = true;
+                commentSubmit.textContent = '등록 중…';
+                try {
+                    if (await postComment(`/api/posts/${postId}/comments`, commentInput.value)) {
+                        commentInput.value = '';
+                        await loadComments();
+                    }
+                } finally {
+                    commentSubmitting = false;
+                    commentSubmit.disabled = false;
+                    commentSubmit.textContent = '댓글 작성';
+                }
+            });
+        }
         loadComments();
-    }
-    function replyTo(commentId) {
-        const target = document.getElementById(`reply-${commentId}`);
-        target.innerHTML = `<textarea class="form-control form-control-sm my-2" rows="2"></textarea><button class="btn btn-outline-primary btn-sm">답글 작성</button>`;
-        target.querySelector('button').onclick = async () => {
-            await postComment(`/api/comments/${commentId}/replies`, target.querySelector('textarea').value);
-            loadComments();
-        };
-    }
-    async function postComment(url, content) {
-        const res = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content})});
-        const json = await res.json();
-        if (!json.success) alert(json.message);
-    }
-    function escapeHtml(value) {
-        return String(value || '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-    }
-    loadComments();
+    })();
 </script>
 <th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
 </body>
