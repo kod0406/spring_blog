@@ -261,13 +261,64 @@ oci.object-storage.video-bucket=사용자 직접 입력
 ./gradlew ociIntegrationTest
 ```
 
+## OCI ARM 블루·그린 배포
+
+GitHub Actions 워크플로는 `master` 브랜치에 push할 때만 실행됩니다. 일반 GitHub 호스팅 러너는 AMD64이므로 Buildx로 `linux/arm64` 이미지를 명시적으로 빌드하고 OCI ARM Compute로 전송합니다. OCI ARM 인스턴스에서 직접 `docker build .`을 실행하는 경우에는 호스트와 같은 ARM64 이미지가 만들어집니다.
+
+필수 GitHub Actions secret:
+
+- `OCI_DEPLOY_SSH_KEY`: Compute 접속 전용 SSH private key
+- `OCI_SSH_KNOWN_HOSTS`: `ssh-keyscan`으로 사전에 확인한 서버 host key
+- `OCI_HOST`: Compute의 접속 주소
+- `OCI_USER`: 배포 계정명
+
+서버에는 배포 전에 다음 파일을 준비합니다. 실제 인증값은 Git 저장소나 Actions 로그에 넣지 않습니다.
+
+- `/opt/jwt-blog/config/application-production.properties`
+- `/opt/jwt-blog/config/redis-password`
+- `/etc/nginx/conf.d/jwt-blog.target`
+
+외부 application properties에는 MySQL, JWT, 관리자 bootstrap, 메일, OCI 버킷 설정과 함께 다음 Redis 연결값을 지정합니다. `spring.data.redis.password`는 `/opt/jwt-blog/config/redis-password`의 내용과 같아야 합니다.
+
+```properties
+spring.data.redis.host=jwt-blog-redis
+spring.data.redis.port=6379
+spring.data.redis.password=사용자_직접_입력
+```
+
+Nginx는 전환 대상 파일을 upstream 안에서 include합니다. 최초 대상 파일에는 `server 127.0.0.1:18080;`을 기록합니다.
+
+```nginx
+upstream jwt_blog {
+    include /etc/nginx/conf.d/jwt-blog.target;
+}
+
+server {
+    listen 443 ssl;
+    server_name example.com;
+
+    location / {
+        proxy_pass http://jwt_blog;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+배포 스크립트는 새 색상 컨테이너의 API 응답을 확인한 뒤 Nginx를 전환합니다. 실패하면 새 컨테이너를 제거하고, 전환 이후 실패한 경우 이전 Nginx 대상을 복원합니다. 성공하면 이전 애플리케이션 컨테이너는 제거하지만 직전 Docker 이미지는 롤백을 위해 유지합니다. 이미지 전체 자동 정리는 수행하지 않습니다.
+
+Redis는 별도 단일 컨테이너와 영속 볼륨을 사용하므로 애플리케이션 blue/green 교체에 포함되지 않습니다. 운영 전에는 Docker, Nginx, `curl`, `flock`, Redis 데이터 디렉터리 권한, OCI Instance Principal의 Object Storage IAM 권한을 확인해야 합니다.
+
 ## 리팩터링 구조 메모
 
 - 권한 검증은 `AuthorizationService`를 중심으로 수행하며, 관리자 전용 서비스 메서드는 컨트롤러 보안 설정에만 의존하지 않습니다.
 - 공개/관리자 경로 목록은 `SecurityPaths`에서 관리하고 `SecurityConfig`가 적용합니다. JWT filter는 경로를 별도 판단하지 않고 인증 실패를 Security filter chain에 위임합니다.
 - 게시글 검색 조건은 `BoardSearchSpecificationFactory`, 게시글 DTO 변환은 `BoardDtoMapper`가 담당합니다.
 - 관리자 댓글 조회는 전체 댓글을 메모리에서 필터링하지 않고 Repository Specification으로 필터링합니다.
-- 공통 Thymeleaf navbar/flash 영역은 `templates/fragments/common.html` fragment를 사용합니다.
+- 공통 Thymeleaf header/footer/flash/확인 modal 영역은 `templates/fragments/common.html` fragment를 사용합니다.
+- 공통 디자인은 `static/css/site.css`, 테마·독서 설정은 `static/js/site-preferences.js`에서 관리합니다.
 - 변경 후 기준 검증 명령은 `./gradlew test`와 최종 `./gradlew build`입니다.
 
 ### 리팩터링 마감 메모
@@ -275,12 +326,13 @@ oci.object-storage.video-bucket=사용자 직접 입력
 - 관리자 REST API와 관리자 Web 화면은 분리 유지합니다. REST API는 JSON `ApiResponse`, Web 화면은 Thymeleaf template/redirect를 반환합니다.
 - Web redirect/flash 반복 처리는 `WebRedirectSupport`로 공통화했습니다.
 - 게시글, 글머리, 댓글, 미디어, 관리자 회원 응답 변환은 mapper 컴포넌트가 담당합니다.
-- Thymeleaf navbar/flash 중복은 `fragments/common.html`의 `navbar`, `adminNavbar`, `authNavbar`, `flash` fragment로 정리했습니다.
+- Thymeleaf 공통 UI는 `fragments/common.html`의 `navbar`, `adminNavbar`, `authNavbar`, `flash`, `footer` fragment로 정리했습니다.
+- 첫 방문 테마는 시스템 설정을 따르며, 사용자가 선택한 테마·독서 글꼴·글자 크기는 브라우저 local storage에 저장합니다.
 - `loginDto` 클래스명 변경은 이번 안정화 범위에서 제외했습니다. public API 영향은 없지만 import 변경 범위가 넓어 별도 소형 PR로 처리하는 것이 안전합니다.
 
 ### Refactor completion notes
 
 - `UserController`의 잘못된 요청은 공통 `ApiExceptionHandler`가 처리합니다. 계정 복구 요청은 이메일 존재 여부와 무관하게 동일한 성공 응답을 반환합니다.
-- Common Thymeleaf CSS/script resources live in `fragments/common.html`: Bootstrap CSS, base style, Bootstrap JS, and Toast UI editor assets.
-- `ThymeleafRenderSmokeTest` verifies the main public, post, and admin pages render after fragment extraction.
+- Common Thymeleaf resources are loaded by `fragments/common.html`: Bootstrap 5.3, `site.css`, `site-preferences.js`, and Toast UI editor assets.
+- `ThymeleafRenderSmokeTest` verifies public, post, auth, admin, and static design resources render or load successfully.
 - `UserApiExceptionHandlingTest` verifies user API validation errors still return the shared `ApiResponse` error shape.

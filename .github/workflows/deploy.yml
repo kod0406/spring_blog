@@ -1,0 +1,84 @@
+name: JWT Blog Blue-Green Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jwt-blog-production
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: jwt-blog
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Build and test
+        run: |
+          chmod +x gradlew
+          ./gradlew clean build --no-daemon
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build ARM64 image archive
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/arm64
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          outputs: type=docker,dest=${{ runner.temp }}/jwt-blog-${{ github.sha }}.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OCI_DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.OCI_SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Upload image and deployment script
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          scp "${RUNNER_TEMP}/jwt-blog-${GITHUB_SHA}.tar" \
+            deploy/deploy-blue-green.sh \
+            "${OCI_USER}@${OCI_HOST}:/tmp/"
+
+      - name: Deploy blue-green
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          ssh "${OCI_USER}@${OCI_HOST}" \
+            "sudo mkdir -p /opt/jwt-blog/deploy && \
+             sudo install -m 750 /tmp/deploy-blue-green.sh /opt/jwt-blog/deploy/deploy-blue-green.sh && \
+             sudo /opt/jwt-blog/deploy/deploy-blue-green.sh '${GITHUB_SHA}' && \
+             rm -f /tmp/deploy-blue-green.sh"

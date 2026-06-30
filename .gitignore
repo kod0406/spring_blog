@@ -44,3 +44,10 @@ out/
 oci-local.properties
 oci-*.properties
 *-oci.properties
+
+# Deployment secrets and local production configuration
+application-production.properties
+redis-password
+deploy.env
+.env
+*.env
