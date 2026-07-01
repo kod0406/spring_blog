@@ -53,8 +53,8 @@ public final class SecurityPaths {
             "/admin/**",
             "/posts/write",
             "/board/write",
-            "/posts/**/edit",
-            "/board/**/edit"
+            "/posts/*/edit",
+            "/board/*/edit"
     };
 
     private SecurityPaths() {
