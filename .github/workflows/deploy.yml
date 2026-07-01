@@ -9,11 +9,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: jwt-blog-production
+  group: spring-blog-production
   cancel-in-progress: false
 
 env:
-  IMAGE_NAME: jwt-blog
+  IMAGE_NAME: spring-blog
 
 jobs:
   build-and-deploy:
@@ -49,7 +49,7 @@ jobs:
           context: .
           platforms: linux/arm64
           tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
-          outputs: type=docker,dest=${{ runner.temp }}/jwt-blog-${{ github.sha }}.tar
+          outputs: type=docker,dest=${{ runner.temp }}/spring-blog-${{ github.sha }}.tar
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -124,7 +124,7 @@ jobs:
           OCI_HOST: ${{ secrets.OCI_HOST }}
           OCI_USER: ${{ secrets.OCI_USER }}
         run: |
-          scp "${RUNNER_TEMP}/jwt-blog-${GITHUB_SHA}.tar" \
+          scp "${RUNNER_TEMP}/spring-blog-${GITHUB_SHA}.tar" \
             "${RUNNER_TEMP}/application-production-${GITHUB_SHA}.properties" \
             "${RUNNER_TEMP}/redis-password-${GITHUB_SHA}" \
             deploy/deploy-blue-green.sh \
@@ -139,25 +139,25 @@ jobs:
             "set -Eeuo pipefail
              config_stage='/tmp/application-production-${GITHUB_SHA}.properties'
              redis_stage='/tmp/redis-password-${GITHUB_SHA}'
-             image_stage='/tmp/jwt-blog-${GITHUB_SHA}.tar'
+             image_stage='/tmp/spring-blog-${GITHUB_SHA}.tar'
              script_stage='/tmp/deploy-blue-green.sh'
              cleanup() { rm -f \"\${config_stage}\" \"\${redis_stage}\" \"\${image_stage}\" \"\${script_stage}\"; }
              trap cleanup EXIT
 
-             sudo install -d -m 750 /opt/jwt-blog/config /opt/jwt-blog/deploy
-             if sudo test -f /opt/jwt-blog/config/redis-password && \
-                ! sudo cmp -s \"\${redis_stage}\" /opt/jwt-blog/config/redis-password; then
+             sudo install -d -m 750 /opt/spring-blog/config /opt/spring-blog/deploy
+             if sudo test -f /opt/spring-blog/config/redis-password && \
+                ! sudo cmp -s \"\${redis_stage}\" /opt/spring-blog/config/redis-password; then
                echo 'REDIS_PASSWORD differs from the running server. Rotate it manually before deployment.' >&2
                exit 1
              fi
 
-             sudo install -o root -m 640 \"\${config_stage}\" /opt/jwt-blog/config/application-production.properties.next
-             sudo chown root:10001 /opt/jwt-blog/config/application-production.properties.next
-             sudo mv -f /opt/jwt-blog/config/application-production.properties.next /opt/jwt-blog/config/application-production.properties
-             sudo install -o root -g root -m 600 \"\${redis_stage}\" /opt/jwt-blog/config/redis-password.next
-             sudo mv -f /opt/jwt-blog/config/redis-password.next /opt/jwt-blog/config/redis-password
-             sudo install -o root -g root -m 750 \"\${script_stage}\" /opt/jwt-blog/deploy/deploy-blue-green.sh
-             sudo /opt/jwt-blog/deploy/deploy-blue-green.sh '${GITHUB_SHA}'"
+             sudo install -o root -m 640 \"\${config_stage}\" /opt/spring-blog/config/application-production.properties.next
+             sudo chown root:10001 /opt/spring-blog/config/application-production.properties.next
+             sudo mv -f /opt/spring-blog/config/application-production.properties.next /opt/spring-blog/config/application-production.properties
+             sudo install -o root -g root -m 600 \"\${redis_stage}\" /opt/spring-blog/config/redis-password.next
+             sudo mv -f /opt/spring-blog/config/redis-password.next /opt/spring-blog/config/redis-password
+             sudo install -o root -g root -m 750 \"\${script_stage}\" /opt/spring-blog/deploy/deploy-blue-green.sh
+             sudo /opt/spring-blog/deploy/deploy-blue-green.sh '${GITHUB_SHA}'"
 
       - name: Remove temporary deployment secrets
         if: always()

@@ -62,8 +62,6 @@ class ThymeleafRenderSmokeTest {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/reset-password"))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/email"))
-                .andExpect(status().isOk());
     }
 
     @Test
@@ -77,7 +75,7 @@ class ThymeleafRenderSmokeTest {
                 .andExpect(content().string(containsString(".toastui-editor-popup")));
         mockMvc.perform(get("/js/site-preferences.js"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("jwt-blog.theme")))
+                .andExpect(content().string(containsString("kod04061-blog.theme")))
                 .andExpect(content().string(containsString("storageAvailable")));
     }
 

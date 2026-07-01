@@ -2,7 +2,7 @@ FROM eclipse-temurin:17-jre-jammy
 
 WORKDIR /app
 
-ARG JAR_FILE=build/libs/JWT-0.0.1-SNAPSHOT.jar
+ARG JAR_FILE=build/libs/spring-blog-0.0.1-SNAPSHOT.jar
 COPY --chown=10001:10001 ${JAR_FILE} /app/app.jar
 
 USER 10001:10001

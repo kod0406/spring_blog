@@ -10,12 +10,12 @@
 # spring.datasource.hikari.minimum-idle=1
 # spring.datasource.hikari.connection-timeout=30000
 # Load the external file with:
-# SPRING_CONFIG_ADDITIONAL_LOCATION=file:/opt/jwt-blog/config/application-production.properties
+# SPRING_CONFIG_ADDITIONAL_LOCATION=file:/opt/spring-blog/config/application-production.properties
 # Keep ddl-auto=update for the current schema bootstrap; use validate after adopting migrations.
 
 spring:
   application:
-    name: JWT
+    name: spring-blog
   thymeleaf:
     cache: ${THYMELEAF_CACHE:true}
   datasource:

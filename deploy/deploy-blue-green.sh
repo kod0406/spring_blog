@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 SHA="${1:?Usage: deploy-blue-green.sh <git-sha>}"
-DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/jwt-blog}"
+DEPLOY_ROOT="${DEPLOY_ROOT:-/opt/spring-blog}"
 DEPLOY_ENV="${DEPLOY_ENV:-${DEPLOY_ROOT}/config/deploy.env}"
 
 if [[ -f "${DEPLOY_ENV}" ]]; then
@@ -12,19 +12,19 @@ if [[ -f "${DEPLOY_ENV}" ]]; then
   set +a
 fi
 
-IMAGE_NAME="${IMAGE_NAME:-jwt-blog}"
+IMAGE_NAME="${IMAGE_NAME:-spring-blog}"
 IMAGE="${IMAGE_NAME}:${SHA}"
-IMAGE_TAR="${IMAGE_TAR:-/tmp/jwt-blog-${SHA}.tar}"
+IMAGE_TAR="${IMAGE_TAR:-/tmp/spring-blog-${SHA}.tar}"
 CONFIG_FILE="${CONFIG_FILE:-${DEPLOY_ROOT}/config/application-production.properties}"
 REDIS_PASSWORD_FILE="${REDIS_PASSWORD_FILE:-${DEPLOY_ROOT}/config/redis-password}"
-REDIS_DATA_DIR="${REDIS_DATA_DIR:-/mnt/jwt-blog/redis}"
-NETWORK="${NETWORK:-jwt-blog-net}"
-REDIS_CONTAINER="${REDIS_CONTAINER:-jwt-blog-redis}"
-BLUE_CONTAINER="${BLUE_CONTAINER:-jwt-blog-blue}"
-GREEN_CONTAINER="${GREEN_CONTAINER:-jwt-blog-green}"
+REDIS_DATA_DIR="${REDIS_DATA_DIR:-/mnt/spring-blog/redis}"
+NETWORK="${NETWORK:-spring-blog-net}"
+REDIS_CONTAINER="${REDIS_CONTAINER:-spring-blog-redis}"
+BLUE_CONTAINER="${BLUE_CONTAINER:-spring-blog-blue}"
+GREEN_CONTAINER="${GREEN_CONTAINER:-spring-blog-green}"
 BLUE_PORT="${BLUE_PORT:-18080}"
 GREEN_PORT="${GREEN_PORT:-18081}"
-NGINX_TARGET_FILE="${NGINX_TARGET_FILE:-/etc/nginx/conf.d/jwt-blog.target}"
+NGINX_TARGET_FILE="${NGINX_TARGET_FILE:-/etc/nginx/conf.d/spring-blog.target}"
 ACTIVE_COLOR_FILE="${ACTIVE_COLOR_FILE:-${DEPLOY_ROOT}/state/active-color}"
 PUBLIC_HEALTH_URL="${PUBLIC_HEALTH_URL:-}"
 APP_MEMORY="${APP_MEMORY:-2g}"
@@ -141,8 +141,8 @@ docker run -d \
   -p "127.0.0.1:${NEW_PORT}:8080" \
   -v "${CONFIG_FILE}:/run/config/application-production.properties:ro" \
   -e SPRING_CONFIG_ADDITIONAL_LOCATION=file:/run/config/application-production.properties \
-  --label jwt-blog.role=application \
-  --label "jwt-blog.revision=${SHA}" \
+  --label spring-blog.role=application \
+  --label "spring-blog.revision=${SHA}" \
   "${IMAGE}" >/dev/null
 
 for _ in $(seq 1 60); do

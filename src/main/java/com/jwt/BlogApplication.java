@@ -6,10 +6,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-public class JwtApplication {
+public class BlogApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(JwtApplication.class, args);
+        SpringApplication.run(BlogApplication.class, args);
     }
 
 }
+
