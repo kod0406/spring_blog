@@ -11,7 +11,7 @@
 # spring.datasource.hikari.connection-timeout=30000
 # Load the external file with:
 # SPRING_CONFIG_ADDITIONAL_LOCATION=file:/opt/spring-blog/config/application-production.properties
-# Keep ddl-auto=update for the current schema bootstrap; use validate after adopting migrations.
+# Use Oracle-compatible sequence-based IDs and manage schema with migrations or validated DDL.
 
 spring:
   application:
@@ -25,8 +25,13 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:validate}
+      ddl-auto: ${JPA_DDL_AUTO:update}
     database-platform: ${JPA_DIALECT}
+  flyway:
+    enabled: ${FLYWAY_ENABLED:false}
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: ${FLYWAY_BASELINE_VERSION:0}
+    locations: ${FLYWAY_LOCATIONS:classpath:db/migration/oracle}
   h2:
     console:
       enabled: ${H2_CONSOLE_ENABLED:false}

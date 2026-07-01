@@ -90,6 +90,34 @@ DB_PASSWORD=...
 JPA_DIALECT=org.hibernate.dialect.MySQLDialect
 ```
 
+### Flyway / Liquibase 선택 기준
+
+- Flyway: 버전 순서(`V1`, `V2` ...) SQL 파일 중심, 단순하고 배포 파이프라인에 붙이기 쉬움
+- Liquibase: XML/YAML/JSON/SQL 지원, 변경 이력 표현이 풍부하고 복잡한 스키마 정책에 유리
+
+이 프로젝트는 운영 OCI Oracle 장애(`TEXT`, `comment` 테이블명 충돌) 대응을 위해 Flyway를 채택했습니다.
+
+### 운영(OCI Oracle) 권장 설정
+
+운영 외부 설정 파일(예: `/opt/spring-blog/config/application-production.properties`)에 아래를 포함하세요.
+
+```properties
+JPA_DIALECT=org.hibernate.dialect.OracleDialect
+JPA_DDL_AUTO=update
+FLYWAY_ENABLED=true
+FLYWAY_BASELINE_ON_MIGRATE=true
+FLYWAY_BASELINE_VERSION=0
+FLYWAY_LOCATIONS=classpath:db/migration/oracle
+```
+
+초기 전환 단계에서는 `JPA_DDL_AUTO=update`로 두고, 스키마가 안정화되면 `validate`로 전환하는 것을 권장합니다.
+
+`src/main/resources/db/migration/oracle/V1__oracle_compatibility.sql`는 아래를 수행합니다.
+
+- `comment` 테이블이 있으면 `comments`로 rename
+- `board.content`, `board.content_markdown`, `comments.content`를 CLOB으로 보정
+- `user_seq`, `category_seq`, `board_seq`, `comment_seq`, `media_file_seq` 생성
+
 ## Redis
 
 Redis는 refresh token과 이메일 인증 코드 저장소로 사용됩니다. Refresh JWT 원문은 저장하지 않고 SHA-256 hash를 `refresh_token:{userId}`에 TTL과 함께 저장합니다. 갱신 시 Lua compare-and-set으로 현재 hash가 일치할 때만 새 refresh token으로 원자적 rotation합니다. 사용자당 활성 refresh 세션은 1개이므로 새 로그인은 이전 refresh token을 무효화합니다.

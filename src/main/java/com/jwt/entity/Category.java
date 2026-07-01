@@ -9,15 +9,17 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
+import jakarta.persistence.SequenceGenerator;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Entity
+@SequenceGenerator(name = "category_seq", sequenceName = "category_seq", allocationSize = 1)
 @Data
 public class Category {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "category_seq")
     private Long categoryId;
 
     @Column(name = "category_key", nullable = false, unique = true, updatable = false, length = 80)

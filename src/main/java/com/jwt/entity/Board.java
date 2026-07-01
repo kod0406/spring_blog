@@ -6,21 +6,22 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Entity
+@SequenceGenerator(name = "board_seq", sequenceName = "board_seq", allocationSize = 1)
 @Data
 public class Board {
    @Id
-   @GeneratedValue(strategy = GenerationType.IDENTITY)
+   @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "board_seq")
     private long boardId;
 
     @Column(nullable = false, length = 200)
     private String title;
 
     @Lob
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false)
     private String content;
 
     @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column
     private String contentMarkdown;
 
     @Column(nullable = true)

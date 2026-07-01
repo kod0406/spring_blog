@@ -11,15 +11,19 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
 import lombok.Data;
 
 import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "comments")
+@SequenceGenerator(name = "comment_seq", sequenceName = "comment_seq", allocationSize = 1)
 @Data
 public class Comment {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "comment_seq")
     private Long commentId;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -35,7 +39,7 @@ public class Comment {
     private Comment parent;
 
     @Lob
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(nullable = false)
     private String content;
 
     @Column(nullable = false)

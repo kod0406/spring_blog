@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.Index;
 import lombok.Data;
@@ -22,10 +23,11 @@ import java.time.LocalDateTime;
         @Index(name = "idx_media_board", columnList = "board_id"),
         @Index(name = "idx_media_status_orphaned", columnList = "status,orphaned_at")
 })
+@SequenceGenerator(name = "media_file_seq", sequenceName = "media_file_seq", allocationSize = 1)
 @Data
 public class MediaFile {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "media_file_seq")
     private Long mediaFileId;
 
     @Column(nullable = false)
