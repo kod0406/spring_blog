@@ -12,7 +12,11 @@ public class OciObjectStorageProperties {
     private String configFile;
     private String profile = "DEFAULT";
     private String region;
+    private String imageRegion;
+    private String videoRegion;
     private String namespace;
+    private String imageNamespace;
+    private String videoNamespace;
     private String imageBucket;
     private String videoBucket;
 }

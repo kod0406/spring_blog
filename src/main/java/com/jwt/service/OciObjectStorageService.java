@@ -30,8 +30,8 @@ public class OciObjectStorageService implements ObjectStorageService {
                                long contentLength,
                                InputStream inputStream) {
         try {
-            PutObjectResponse response = client().putObject(PutObjectRequest.builder()
-                    .namespaceName(namespace())
+            PutObjectResponse response = client(mediaType).putObject(PutObjectRequest.builder()
+                    .namespaceName(namespace(mediaType))
                     .bucketName(bucket(mediaType))
                     .objectName(objectKey)
                     .contentType(contentType)
@@ -60,8 +60,8 @@ public class OciObjectStorageService implements ObjectStorageService {
     @Override
     public void delete(MediaType mediaType, String objectKey) {
         try {
-            client().deleteObject(DeleteObjectRequest.builder()
-                    .namespaceName(namespace())
+            client(mediaType).deleteObject(DeleteObjectRequest.builder()
+                    .namespaceName(namespace(mediaType))
                     .bucketName(bucket(mediaType))
                     .objectName(objectKey)
                     .build());
@@ -76,13 +76,13 @@ public class OciObjectStorageService implements ObjectStorageService {
     private StoredContent get(MediaType mediaType, String objectKey, ObjectRange range) {
         try {
             GetObjectRequest.Builder builder = GetObjectRequest.builder()
-                    .namespaceName(namespace())
+                    .namespaceName(namespace(mediaType))
                     .bucketName(bucket(mediaType))
                     .objectName(objectKey);
             if (range != null) {
                 builder.range(new Range(range.startByte(), range.endByte()));
             }
-            GetObjectResponse response = client().getObject(builder.build());
+            GetObjectResponse response = client(mediaType).getObject(builder.build());
             return new StoredContent(
                     response.getInputStream(),
                     response.getContentLength(),
@@ -95,12 +95,20 @@ public class OciObjectStorageService implements ObjectStorageService {
         }
     }
 
-    private ObjectStorage client() {
-        return clientFactory.getClient();
+    private ObjectStorage client(MediaType mediaType) {
+        return clientFactory.getClient(mediaType);
     }
 
-    private String namespace() {
-        return require(properties.getNamespace(), "OCI namespace 설정이 없습니다.");
+    private String namespace(MediaType mediaType) {
+        String configured = mediaType == MediaType.IMAGE
+                ? properties.getImageNamespace()
+                : properties.getVideoNamespace();
+        if (configured == null || configured.isBlank()) {
+            configured = properties.getNamespace();
+        }
+        return require(configured, mediaType == MediaType.IMAGE
+                ? "OCI 이미지 namespace 설정이 없습니다."
+                : "OCI 동영상 namespace 설정이 없습니다.");
     }
 
     private String bucket(MediaType mediaType) {

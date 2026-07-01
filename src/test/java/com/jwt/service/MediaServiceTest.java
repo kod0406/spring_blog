@@ -9,12 +9,17 @@ import com.jwt.repository.MediaFileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
 import org.apache.tika.Tika;
 
 import java.io.ByteArrayInputStream;
+import java.util.Base64;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -79,6 +84,42 @@ class MediaServiceTest {
                 org.mockito.ArgumentMatchers.eq("image/png"),
                 org.mockito.ArgumentMatchers.eq((long) png.length),
                 any()
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("imageFormatsWithAnimationSupport")
+    void gifAndWebpUseImageStorage(String filename, String base64, String expectedMimeType) throws Exception {
+        byte[] content = Base64.getDecoder().decode(base64);
+        when(boardService.getPostEntity(10L)).thenReturn(board);
+        when(multipartFile.isEmpty()).thenReturn(false);
+        when(multipartFile.getSize()).thenReturn((long) content.length);
+        when(multipartFile.getOriginalFilename()).thenReturn(filename);
+        when(multipartFile.getInputStream()).thenAnswer(invocation -> new ByteArrayInputStream(content));
+        when(objectStorageService.upload(any(), any(), any(), anyLong(), any()))
+                .thenAnswer(invocation -> new ObjectStorageService.StoredObject(invocation.getArgument(1), "etag"));
+        when(mediaFileRepository.saveAndFlush(any())).thenAnswer(invocation -> {
+            MediaFile media = invocation.getArgument(0);
+            media.setMediaFileId(101L);
+            return media;
+        });
+
+        MediaDto.Response response = mediaService.uploadImage(10L, multipartFile, admin);
+
+        assertThat(response.getMimeType()).isEqualTo(expectedMimeType);
+        verify(objectStorageService).upload(
+                org.mockito.ArgumentMatchers.eq(MediaType.IMAGE),
+                org.mockito.ArgumentMatchers.startsWith("images/"),
+                org.mockito.ArgumentMatchers.eq(expectedMimeType),
+                org.mockito.ArgumentMatchers.eq((long) content.length),
+                any()
+        );
+    }
+
+    private static Stream<Arguments> imageFormatsWithAnimationSupport() {
+        return Stream.of(
+                Arguments.of("animated.gif", "R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "image/gif"),
+                Arguments.of("animated.webp", "UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJaQAA3AA/vuUAAA=", "image/webp")
         );
     }
 

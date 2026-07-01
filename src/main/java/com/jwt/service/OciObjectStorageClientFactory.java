@@ -1,6 +1,7 @@
 package com.jwt.service;
 
 import com.jwt.config.OciObjectStorageProperties;
+import com.jwt.entity.MediaType;
 import com.oracle.bmc.Region;
 import com.oracle.bmc.auth.AbstractAuthenticationDetailsProvider;
 import com.oracle.bmc.auth.ConfigFileAuthenticationDetailsProvider;
@@ -12,33 +13,41 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Locale;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 @RequiredArgsConstructor
 public class OciObjectStorageClientFactory {
     private final OciObjectStorageProperties properties;
-    private volatile ObjectStorage client;
+    private final Map<String, ObjectStorage> clientsByRegion = new ConcurrentHashMap<>();
 
-    public ObjectStorage getClient() {
-        ObjectStorage current = client;
-        if (current != null) {
-            return current;
-        }
-        synchronized (this) {
-            if (client == null) {
-                client = createClient();
-            }
-            return client;
-        }
+    public ObjectStorage getClient(MediaType mediaType) {
+        String regionId = regionFor(mediaType);
+        return clientsByRegion.computeIfAbsent(regionId, this::createClient);
     }
 
-    private ObjectStorage createClient() {
-        String regionId = require(properties.getRegion(), "OCI region 설정이 없습니다.");
+    private ObjectStorage createClient(String regionId) {
         AbstractAuthenticationDetailsProvider provider = authenticationProvider();
         return ObjectStorageClient.builder()
                 .region(Region.fromRegionId(regionId))
                 .build(provider);
+    }
+
+    String regionFor(MediaType mediaType) {
+        if (mediaType == null) {
+            throw new IllegalArgumentException("미디어 유형이 필요합니다.");
+        }
+        String configured = mediaType == MediaType.IMAGE
+                ? properties.getImageRegion()
+                : properties.getVideoRegion();
+        if (configured == null || configured.isBlank()) {
+            configured = properties.getRegion();
+        }
+        return require(configured, mediaType == MediaType.IMAGE
+                ? "OCI 이미지 리전 설정이 없습니다."
+                : "OCI 동영상 리전 설정이 없습니다.");
     }
 
     private AbstractAuthenticationDetailsProvider authenticationProvider() {
@@ -70,9 +79,21 @@ public class OciObjectStorageClientFactory {
 
     @PreDestroy
     void close() throws Exception {
-        ObjectStorage current = client;
-        if (current != null) {
-            current.close();
+        Exception failure = null;
+        for (ObjectStorage client : clientsByRegion.values()) {
+            try {
+                client.close();
+            } catch (Exception e) {
+                if (failure == null) {
+                    failure = e;
+                } else {
+                    failure.addSuppressed(e);
+                }
+            }
+        }
+        clientsByRegion.clear();
+        if (failure != null) {
+            throw failure;
         }
     }
 }
