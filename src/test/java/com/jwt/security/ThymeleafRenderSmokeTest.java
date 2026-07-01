@@ -86,11 +86,11 @@ class ThymeleafRenderSmokeTest {
 
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
-                .andExpect(content().string(containsString("class=\"post-grid\"")));
+                .andExpect(content().string(containsString("class=\"editorial-feed\"")));
         mockMvc.perform(get("/posts"))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("class=\"result-summary\"")))
-                .andExpect(content().string(containsString("class=\"result-list\"")));
+                .andExpect(content().string(containsString("class=\"editorial-feed\"")));
         mockMvc.perform(get("/posts/{postId}", post.getPostId()))
                 .andExpect(status().isOk());
         mockMvc.perform(get("/admin/posts/{postId}/edit", post.getPostId()).cookie(accessCookie(admin)))
