@@ -53,8 +53,8 @@ public class BoardService {
         authorizationService.requireAdmin(user);
         Board board = new Board();
         board.setTitle("");
-        board.setContent("");
-        board.setContentMarkdown("");
+        board.setContent(" ");
+        board.setContentMarkdown(" ");
         board.setPublished(false);
         board.setDraft(true);
         board.setUser(user);

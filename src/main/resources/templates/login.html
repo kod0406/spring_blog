@@ -11,7 +11,7 @@
 <div th:replace="~{fragments/common :: authNavbar('login')}"></div>
 <main id="main-content" class="container auth-shell">
     <section class="auth-card" aria-labelledby="login-heading">
-        <header class="auth-card-header"><div class="auth-mark" aria-hidden="true">J</div><h1 id="login-heading">다시 오신 것을 환영합니다</h1><p>계정으로 로그인해 글과 댓글을 관리하세요.</p></header>
+        <header class="auth-card-header"><div class="auth-mark" aria-hidden="true">✋</div><h1 id="login-heading">다시 오신 것을 환영합니다</h1><p>계정으로 로그인해 글과 댓글을 관리하세요.</p></header>
         <div th:replace="~{fragments/common :: flash}"></div>
         <form th:action="@{/login}" method="post" th:object="${loginDto}">
             <input type="hidden" id="returnUrl" name="returnUrl" th:value="${returnUrl}">
