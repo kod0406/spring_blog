@@ -52,7 +52,7 @@ public class BoardService {
     public BoardDto.Response createDraft(User user) {
         authorizationService.requireAdmin(user);
         Board board = new Board();
-        board.setTitle("");
+        board.setTitle(" ");
         board.setContent(" ");
         board.setContentMarkdown(" ");
         board.setPublished(false);
@@ -227,15 +227,15 @@ public class BoardService {
         if (requestDto == null) {
             throw new BadRequestException("임시 저장할 글 정보가 없습니다.");
         }
-        String title = requestDto.getTitle() == null ? "" : requestDto.getTitle().trim();
+        String title = requestDto.getTitle() == null ? " " : requestDto.getTitle().trim();
         if (title.length() > 200) {
             throw new BadRequestException("제목은 200자 이하로 입력해 주세요.");
         }
         String rawMarkdown = requestDto.getContentMarkdown() != null
                 ? requestDto.getContentMarkdown()
                 : requestDto.getContent();
-        String markdown = rawMarkdown == null ? "" : rawMarkdown;
-        board.setTitle(title);
+        String markdown = rawMarkdown == null ? " " : rawMarkdown;
+        board.setTitle(title.isEmpty() ? " " : title);
         board.setContent(markdown);
         board.setContentMarkdown(markdown);
 

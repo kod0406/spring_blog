@@ -120,7 +120,7 @@ public class MediaService {
             MediaFile mediaFile = new MediaFile();
             mediaFile.setOriginalFilename(filename);
             mediaFile.setObjectKey(storedObject.objectKey());
-            mediaFile.setUrl("");
+            mediaFile.setUrl(" ");
             mediaFile.setMimeType(normalizeContentType(detectedType));
             mediaFile.setSize(file.getSize());
             mediaFile.setMediaType(mediaType);

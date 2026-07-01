@@ -140,7 +140,7 @@ public class CommentService {
 
     private void softDelete(Comment comment) {
         comment.setDeleted(true);
-        comment.setContent("");
+        comment.setContent(" ");
     }
 
     private void validateRequest(CommentDto.Request request) {
