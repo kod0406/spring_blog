@@ -46,23 +46,22 @@ class UserServiceTest {
         assertThat(user.getRoleEnum()).isEqualTo(UserRole.ADMIN);
     }
 
-    @Test
-    void legacyOwnerRoleRowsAreNormalizedOnStartup() {
-        jdbcTemplate.execute("alter table users alter column role varchar(255)");
-        jdbcTemplate.update(
-                "insert into users (name, email, password, role, status) values (?, ?, ?, ?, ?)",
-                "Legacy Owner",
-                "legacy-owner@example.com",
-                "{noop}password",
-                "OWNER",
-                "ACTIVE"
-        );
+@Test
+void legacyOwnerRoleRowsAreNormalizedOnStartup() {
+    // 💡 변경: jdbcTemplate 대신 UserRepository 사용 (JPA가 ID나 필수 컬럼을 알아서 처리함)
+    User legacyUser = new User();
+    legacyUser.setName("Legacy Owner");
+    legacyUser.setEmail("legacy-owner@example.com");
+    legacyUser.setPassword("{noop}password");
+    legacyUser.setRole("OWNER");
+    // status 등 기타 필수 속성 세팅 필요
+    userRepository.save(legacyUser);
 
-        userService.run(null);
+    userService.run(null);
 
-        User user = userRepository.findByEmail("legacy-owner@example.com");
-        assertThat(user.getRoleEnum()).isEqualTo(UserRole.ADMIN);
-    }
+    User user = userRepository.findByEmail("legacy-owner@example.com");
+    assertThat(user.getRoleEnum()).isEqualTo(UserRole.ADMIN);
+}
 
     @Test
     void registeredUserStartsPendingAndCannotLoginUntilApproved() {
