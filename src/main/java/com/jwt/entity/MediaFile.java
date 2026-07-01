@@ -42,7 +42,7 @@ public class MediaFile {
     @Column(nullable = false)
     private String mimeType;
 
-    @Column(nullable = false)
+    @Column(name = "file_size", nullable = false)
     private Long size;
 
     @Enumerated(EnumType.STRING)
