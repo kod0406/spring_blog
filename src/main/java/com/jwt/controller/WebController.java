@@ -4,11 +4,15 @@ import com.jwt.dto.BoardDto;
 import com.jwt.dto.RegistrationDto;
 import com.jwt.dto.loginDto;
 import com.jwt.entity.User;
-import com.jwt.service.BoardService;
-import com.jwt.service.UserService;
-import com.jwt.jwt.JwtTokenProvider;
-import com.jwt.redis.TokenRedisService;
 import com.jwt.jwt.JwtCookieUtil;
+import com.jwt.jwt.JwtTokenPair;
+import com.jwt.service.AuthorizationService;
+import com.jwt.service.BoardService;
+import com.jwt.service.CategoryService;
+import com.jwt.service.JwtSessionService;
+import com.jwt.service.UserAccountRecoveryService;
+import com.jwt.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,16 +20,15 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @Controller
 @RequiredArgsConstructor
@@ -33,302 +36,242 @@ import java.util.Map;
 public class WebController {
 
     private final UserService userService;
+    private final UserAccountRecoveryService userAccountRecoveryService;
     private final BoardService boardService;
-    private final JwtTokenProvider jwtTokenProvider;
-    private final TokenRedisService tokenRedisService;
+    private final CategoryService categoryService;
+    private final AuthorizationService authorizationService;
+    private final JwtSessionService jwtSessionService;
     private final JwtCookieUtil jwtCookieUtil;
 
-    @org.springframework.beans.factory.annotation.Value("${jwt.refresh-Millis}")
-    private long refreshExpirationMillis;
-
-    // 메인 페이지 (로그인 전 랜딩 페이지)
     @GetMapping("/")
-    public String index() {
+    public String index(Model model, @AuthenticationPrincipal User user) {
+        Page<BoardDto.Response> posts = boardService.getPosts(null, null, null, null, PageRequest.of(0, 5, Sort.by("createdAt").descending()), user);
+        model.addAttribute("posts", posts.getContent());
+        model.addAttribute("categories", categoryService.getVisibleCategories(user));
+        model.addAttribute("isAdmin", authorizationService.isAdmin(user));
         return "index";
     }
 
-    // 이메일 테스트 페이지
-    @GetMapping("/email")
-    public String emailForm() {
-        return "email";
-    }
+    @GetMapping({"/posts", "/board"})
+    public String postList(@RequestParam(defaultValue = "0") int page,
+                           @RequestParam(required = false) String category,
+                           @RequestParam(required = false) String keyword,
+                           @RequestParam(required = false) String searchType,
+                           @RequestParam(required = false) String sort,
+                           @AuthenticationPrincipal User user,
+                           Model model) {
+        int resolvedPage = Math.max(page, 0);
+        Pageable pageable = PageRequest.of(resolvedPage, 10, Sort.by("createdAt").descending());
+        Page<BoardDto.Response> posts = boardService.getPosts(category, keyword, searchType, sort, pageable, user);
 
-    // 게시판 목록 페이지 (로그인 후)
-    @GetMapping("/board")
-    public String boardList(@RequestParam(defaultValue = "0") int page, Model model, @AuthenticationPrincipal User user) {
-        if (user == null) {
-            return "redirect:/login";
-        }
-
-        Pageable pageable = PageRequest.of(page, 10, Sort.by("createdAt").descending());
-        Page<BoardDto.Response> boards = boardService.getAllBoards(pageable);
-
-        model.addAttribute("boards", boards);
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", boards.getTotalPages());
+        model.addAttribute("posts", posts);
+        model.addAttribute("boards", posts);
+        model.addAttribute("categories", categoryService.getVisibleCategories(user));
+        model.addAttribute("selectedCategory", category);
+        model.addAttribute("keyword", keyword);
+        model.addAttribute("searchType", searchType == null || searchType.isBlank() ? "title_content" : searchType);
+        model.addAttribute("sort", sort == null || sort.isBlank() ? "latest" : sort);
+        model.addAttribute("currentPage", resolvedPage);
+        model.addAttribute("totalPages", posts.getTotalPages());
+        model.addAttribute("isAdmin", authorizationService.isAdmin(user));
         return "board/list";
     }
 
-    // 회원가입 페이지
+    @GetMapping({"/posts/{postId}", "/board/{postId}"})
+    public String postDetail(@PathVariable Long postId,
+                             Model model,
+                             @AuthenticationPrincipal User user,
+                             RedirectAttributes redirectAttributes) {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/posts", null, () -> {
+            BoardDto.Response post = boardService.getBoardById(postId, user);
+            boolean isAdmin = authorizationService.isAdmin(user);
+            boolean canComment = Boolean.TRUE.equals(post.getPrivatePost()) ? isAdmin : authorizationService.isActiveUser(user);
+            model.addAttribute("post", post);
+            model.addAttribute("board", post);
+            model.addAttribute("canComment", canComment);
+            model.addAttribute("isAdmin", isAdmin);
+            return "board/detail";
+        });
+    }
+
+    @GetMapping({"/admin/posts/new", "/posts/write", "/board/write"})
+    public String writeForm(@AuthenticationPrincipal User user, Model model, RedirectAttributes redirectAttributes) {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/login", null, () -> {
+            authorizationService.requireAdmin(user);
+            return "redirect:/admin/posts";
+        });
+    }
+
+    @PostMapping("/admin/posts/drafts")
+    public String createDraft(@AuthenticationPrincipal User user, RedirectAttributes redirectAttributes) {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/admin/posts", "초안 생성 실패: ", () -> {
+            BoardDto.Response draft = boardService.createDraft(user);
+            return "redirect:/admin/posts/" + draft.getPostId() + "/edit";
+        });
+    }
+
+    @PostMapping({"/admin/posts", "/posts/write", "/board/write"})
+    public String writePost(@ModelAttribute BoardDto.Request boardDto,
+                            @AuthenticationPrincipal User user,
+                            RedirectAttributes redirectAttributes) {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/admin/posts/new", "글 작성 실패: ", () -> {
+            BoardDto.Response post = boardService.createBoard(boardDto, user);
+            redirectAttributes.addFlashAttribute("message", "글이 작성되었습니다.");
+            return "redirect:/posts/" + post.getPostId();
+        });
+    }
+
+    @GetMapping({"/admin/posts/{postId}/edit", "/posts/{postId}/edit", "/board/{postId}/edit"})
+    public String editForm(@PathVariable Long postId, Model model, @AuthenticationPrincipal User user, RedirectAttributes redirectAttributes) {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/posts", null, () -> {
+            BoardDto.Response post = boardService.getAdminPost(postId, user);
+            BoardDto.Request editDto = new BoardDto.Request(post.getTitle(), post.getContent());
+            editDto.setCategoryKey(post.getCategoryKey());
+            editDto.setPublished(post.getPublished());
+            model.addAttribute("boardDto", editDto);
+            model.addAttribute("post", post);
+            model.addAttribute("postId", postId);
+            model.addAttribute("boardId", postId);
+            model.addAttribute("categories", categoryService.getAllCategories(user));
+            model.addAttribute("draft", post.getDraft());
+            return "board/edit";
+        });
+    }
+
+    @PostMapping({"/admin/posts/{postId}/edit", "/posts/{postId}/edit", "/board/{postId}/edit"})
+    public String editPost(@PathVariable Long postId,
+                           @ModelAttribute BoardDto.Request boardDto,
+                           @AuthenticationPrincipal User user,
+                           RedirectAttributes redirectAttributes) {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/admin/posts/" + postId + "/edit", "수정 실패: ", () -> {
+            boardService.updateBoard(postId, boardDto, user);
+            redirectAttributes.addFlashAttribute("message", "글이 수정되었습니다.");
+            return "redirect:/posts/" + postId;
+        });
+    }
+
+    @PostMapping("/admin/posts/{postId}/draft")
+    public String saveDraft(@PathVariable Long postId,
+                            @ModelAttribute BoardDto.Request boardDto,
+                            @AuthenticationPrincipal User user,
+                            RedirectAttributes redirectAttributes) {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/admin/posts/" + postId + "/edit", "임시 저장 실패: ", () -> {
+            boardService.saveDraft(postId, boardDto, user);
+            redirectAttributes.addFlashAttribute("message", "초안이 임시 저장되었습니다.");
+            return "redirect:/admin/posts/" + postId + "/edit";
+        });
+    }
+
+    @PostMapping("/admin/posts/{postId}/cancel")
+    public String cancelDraft(@PathVariable Long postId,
+                              @AuthenticationPrincipal User user,
+                              RedirectAttributes redirectAttributes) {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/admin/posts", "초안 취소 실패: ", () -> {
+            BoardDto.Response post = boardService.getAdminPost(postId, user);
+            if (Boolean.TRUE.equals(post.getDraft())) {
+                boardService.deleteBoard(postId, user);
+                redirectAttributes.addFlashAttribute("message", "초안이 취소되었습니다. 미디어는 24시간 후 정리됩니다.");
+            }
+            return "redirect:/admin/posts";
+        });
+    }
+
+    @PostMapping({"/admin/posts/{postId}/delete", "/posts/{postId}/delete", "/board/{postId}/delete"})
+    public String deletePost(@PathVariable Long postId,
+                             @AuthenticationPrincipal User user,
+                             RedirectAttributes redirectAttributes) {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/posts/" + postId, "삭제 실패: ", () -> {
+            boardService.deleteBoard(postId, user);
+            redirectAttributes.addFlashAttribute("message", "글이 삭제되었습니다.");
+            return "redirect:/posts";
+        });
+    }
+
     @GetMapping("/register")
     public String registerForm(Model model) {
         model.addAttribute("registrationDto", new RegistrationDto());
         return "register";
     }
 
-    // 회원가입 처리
     @PostMapping("/register")
     public String register(@ModelAttribute RegistrationDto registrationDto, RedirectAttributes redirectAttributes) {
-        try {
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/register", "회원가입 실패: ", () -> {
             userService.registerUser(registrationDto);
-            redirectAttributes.addFlashAttribute("message", "회원가입이 완료되었습니다. 로그인해주세요.");
+            redirectAttributes.addFlashAttribute("message", "회원가입이 완료되었습니다. 관리자 승인 후 로그인할 수 있습니다.");
             return "redirect:/login";
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", "회원가입 실패: " + e.getMessage());
-            return "redirect:/register";
-        }
+        });
     }
 
-    // 로그인 페이지
     @GetMapping("/login")
-    public String loginForm(Model model) {
+    public String loginForm(@RequestParam(required = false) String returnUrl, Model model) {
         model.addAttribute("loginDto", new loginDto());
+        model.addAttribute("returnUrl", safeReturnUrl(returnUrl));
         return "login";
     }
 
-    // 로그인 처리
     @PostMapping("/login")
-    public String login(@ModelAttribute loginDto loginDto, HttpServletResponse response, RedirectAttributes redirectAttributes) {
+    public String login(@ModelAttribute loginDto loginDto,
+                        @RequestParam(required = false) String returnUrl,
+                        HttpServletResponse response,
+                        RedirectAttributes redirectAttributes) {
         try {
             User user = userService.authenticateUser(loginDto.getEmail(), loginDto.getPassword());
 
-            log.info("[로그인 인증 성공] 사용자 이름: {}, 이메일: {}", user.getName(), user.getEmail());
+            JwtTokenPair tokenPair = jwtSessionService.issueTokens(user);
+            jwtCookieUtil.addTokenCookies(response, tokenPair);
 
-            // JWT 액세스 토큰 생성
-            String accessToken = jwtTokenProvider.createAccessToken(String.valueOf(user.getUserId()), user.getRole());
-            // JWT 리프레시 토큰 생성
-            String refreshToken = jwtTokenProvider.createRefreshToken(String.valueOf(user.getUserId()), user.getRole());
-
-            // 토큰을 쿠키에 저장
-            ResponseCookie accessTokenCookie = jwtCookieUtil.createAccessTokenCookie(accessToken);
-            response.addHeader("Set-Cookie", accessTokenCookie.toString());
-            ResponseCookie refreshTokenCookie = jwtCookieUtil.createRefreshTokenCookie(refreshToken);
-            response.addHeader("Set-Cookie", refreshTokenCookie.toString());
-
-            // 리프레시 토큰을 Redis에 저장
-            tokenRedisService.saveRefreshToken(String.valueOf(user.getUserId()), refreshToken, refreshExpirationMillis);
-
-            redirectAttributes.addFlashAttribute("message", "로그인 성공!");
-            return "redirect:/board";  // 로그인 성공 후 게시판으로 이동
+            redirectAttributes.addFlashAttribute("message", "로그인되었습니다.");
+            return "redirect:" + safeReturnUrl(returnUrl);
         } catch (Exception e) {
-            log.error("[로그인 실패] {}", e.getMessage());
+            log.warn("[로그인 실패] {}", e.getMessage());
             redirectAttributes.addFlashAttribute("error", "로그인 실패: " + e.getMessage());
             return "redirect:/login";
         }
     }
 
-    // 로그아웃 처리
     @PostMapping("/logout")
-    public String logout(@AuthenticationPrincipal User user, HttpServletResponse response, RedirectAttributes redirectAttributes) {
+    public String logout(@AuthenticationPrincipal User user,
+                         HttpServletRequest request,
+                         HttpServletResponse response,
+                         RedirectAttributes redirectAttributes) {
         try {
-            log.info("[로그아웃 시작] 사용자: {}", user != null ? user.getName() : "익명");
-
-            if (user != null) {
-                // Redis에서 리프레시 토큰 삭제
-                tokenRedisService.deleteRefreshToken(String.valueOf(user.getUserId()));
-                log.info("[로그아웃] 리프레시 토큰 삭제 완료");
-            }
-
-            // 토큰 쿠키 삭제
-            ResponseCookie deleteAccessTokenCookie = jwtCookieUtil.deleteAccessTokenCookie();
-            response.addHeader("Set-Cookie", deleteAccessTokenCookie.toString());
-            ResponseCookie deleteRefreshTokenCookie = jwtCookieUtil.deleteRefreshTokenCookie();
-            response.addHeader("Set-Cookie", deleteRefreshTokenCookie.toString());
-
-            log.info("[로그아웃] 쿠키 삭제 헤더 추가: {}", deleteAccessTokenCookie.toString());
-
-            // SecurityContext 정리
-            org.springframework.security.core.context.SecurityContextHolder.clearContext();
-            log.info("[로그아웃] SecurityContext 정리 완료");
-
-            if (user != null) {
-                log.info("[로그아웃 완료] 사용자: {}", user.getName());
-            }
-            redirectAttributes.addFlashAttribute("message", "로그아웃 되었습니다.");
-            return "redirect:/login";
-        } catch (Exception e) {
-            log.error("[로그아웃 실패] {}", e.getMessage(), e);
-            redirectAttributes.addFlashAttribute("error", "로그아웃 실패: " + e.getMessage());
-            return "redirect:/login";
+            jwtSessionService.revoke(jwtCookieUtil.extractRefreshToken(request), user);
+        } finally {
+            jwtCookieUtil.deleteTokenCookies(response);
         }
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+
+        redirectAttributes.addFlashAttribute("message", "로그아웃되었습니다.");
+        return "redirect:/";
     }
 
-    // 비밀번호 재설정 페이지
     @GetMapping("/reset-password")
     public String resetPasswordForm() {
         return "reset-password";
     }
 
-    // 이메일 확인 API (AJAX 요청용)
-    @PostMapping("/reset-password/check-email")
-    @ResponseBody
-    public Map<String, Boolean> checkEmail(@RequestBody Map<String, String> request) {
-        String email = request.get("email");
-        Map<String, Boolean> response = new HashMap<>();
-
-        try {
-            // UserService를 통해 이메일로 사용자 조회
-            User user = userService.findByEmail(email);
-            response.put("success", true);
-            log.info("[비밀번호 재설정] 이메일 확인 성공: {}", email);
-        } catch (Exception e) {
-            response.put("success", false);
-            log.warn("[비밀번호 재설정] 이메일 확인 실패: {}", email);
-        }
-
-        return response;
-    }
-
-    // 비밀번호 재설정 처리
     @PostMapping("/reset-password")
     public String resetPassword(@RequestParam String email,
+                                @RequestParam String verificationCode,
                                 @RequestParam String newPassword,
                                 @RequestParam String confirmPassword,
                                 RedirectAttributes redirectAttributes) {
-        try {
-            // 비밀번호 확인
-            if (!newPassword.equals(confirmPassword)) {
-                redirectAttributes.addFlashAttribute("error", "새 비밀번호와 확인 비밀번호가 일치하지 않습니다.");
-                return "redirect:/reset-password";
-            }
-
-            // 비밀번호 길이 검증
-            if (newPassword.length() < 4) {
-                redirectAttributes.addFlashAttribute("error", "비밀번호는 최소 4자 이상이어야 합니다.");
-                return "redirect:/reset-password";
-            }
-
-            // 사용자 조회 및 비밀번호 변경
-            userService.updatePassword(email, newPassword);
-
-            log.info("[비밀번호 재설정 완료] 사용자 이메일: {}", email);
-            redirectAttributes.addFlashAttribute("message", "비밀번호가 성공적으로 변경되었습니다. 새 비밀번호로 로그인해주세요.");
+        return WebRedirectSupport.redirectWithError(redirectAttributes, "redirect:/reset-password", "비밀번호 재설정 실패: ", () -> {
+            userAccountRecoveryService.resetPassword(email, verificationCode, newPassword, confirmPassword);
+            redirectAttributes.addFlashAttribute("message", "비밀번호가 변경되었습니다. 새 비밀번호로 로그인해 주세요.");
             return "redirect:/login";
-
-        } catch (IllegalArgumentException e) {
-            log.error("[비밀번호 재설정 실패] {}", e.getMessage());
-            redirectAttributes.addFlashAttribute("error", "비밀번호 재설정 실패: " + e.getMessage());
-            return "redirect:/reset-password";
-        } catch (Exception e) {
-            log.error("[비밀번호 재설정 오류] {}", e.getMessage());
-            redirectAttributes.addFlashAttribute("error", "시스템 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-            return "redirect:/reset-password";
-        }
+        });
     }
 
-    // 게시글 작성 페이지
-    @GetMapping("/board/write")
-    public String writeForm(@AuthenticationPrincipal User user, Model model) {
-        if (user == null) {
-            return "redirect:/login";
+    private String safeReturnUrl(String returnUrl) {
+        if (returnUrl == null
+                || !returnUrl.startsWith("/")
+                || returnUrl.startsWith("//")
+                || returnUrl.contains("\\")
+                || returnUrl.contains("\r")
+                || returnUrl.contains("\n")) {
+            return "/posts";
         }
-        model.addAttribute("boardDto", new BoardDto.Request());
-        return "board/write";
-    }
-
-    // 게시글 작성 처리
-    @PostMapping("/board/write")
-    public String writeBoard(@ModelAttribute BoardDto.Request boardDto,
-                             @AuthenticationPrincipal User user,
-                             RedirectAttributes redirectAttributes) {
-        if (user == null) {
-            return "redirect:/login";
-        }
-
-        try {
-            boardService.createBoard(boardDto, user);
-            redirectAttributes.addFlashAttribute("message", "게시글이 작성되었습니다.");
-            return "redirect:/board";  // 게시판으로 이동
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "게시글 작성 실패: " + e.getMessage());
-            return "redirect:/board/write";
-        }
-    }
-
-    // 게시글 상세보기
-    @GetMapping("/board/{boardId}")
-    public String boardDetail(@PathVariable Long boardId, Model model, @AuthenticationPrincipal User user) {
-        try {
-            BoardDto.Response board = boardService.getBoardById(boardId);
-            model.addAttribute("board", board);
-            // 현재 로그인한 사용자가 게시글 작성자인지 확인
-            model.addAttribute("isAuthor", user != null && user.getName().equals(board.getAuthorName()));
-            return "board/detail";
-        } catch (IllegalArgumentException e) {
-            return "redirect:/board";
-        }
-    }
-
-    // 게시글 수정 페이지
-    @GetMapping("/board/{boardId}/edit")
-    public String editForm(@PathVariable Long boardId, Model model, @AuthenticationPrincipal User user, RedirectAttributes redirectAttributes) {
-        if (user == null) {
-            return "redirect:/login";
-        }
-
-        try {
-            BoardDto.Response board = boardService.getBoardById(boardId);
-            if (!user.getName().equals(board.getAuthorName())) {
-                redirectAttributes.addFlashAttribute("error", "수정 권한이 없습니다.");
-                return "redirect:/board/" + boardId;
-            }
-
-            BoardDto.Request editDto = new BoardDto.Request(board.getTitle(), board.getContent());
-            model.addAttribute("boardDto", editDto);
-            model.addAttribute("boardId", boardId);
-            return "board/edit";
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", "해당 게시글을 찾을 수 없습니다.");
-            return "redirect:/board";
-        }
-    }
-
-    // 게시글 수정 처리
-    @PostMapping("/board/{boardId}/edit")
-    public String editBoard(@PathVariable Long boardId,
-                           @ModelAttribute BoardDto.Request boardDto,
-                           @AuthenticationPrincipal User user,
-                           RedirectAttributes redirectAttributes) {
-        if (user == null) {
-            return "redirect:/login";
-        }
-
-        try {
-            boardService.updateBoard(boardId, boardDto, user);
-            redirectAttributes.addFlashAttribute("message", "게시글이 수정되었습니다.");
-            return "redirect:/board/" + boardId;
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", "수정 실패: " + e.getMessage());
-            return "redirect:/board/" + boardId + "/edit";
-        }
-    }
-
-    // 게시글 삭제 처리
-    @PostMapping("/board/{boardId}/delete")
-    public String deleteBoard(@PathVariable Long boardId,
-                            @AuthenticationPrincipal User user,
-                            RedirectAttributes redirectAttributes) {
-        if (user == null) {
-            return "redirect:/login";
-        }
-
-        try {
-            boardService.deleteBoard(boardId, user);
-            redirectAttributes.addFlashAttribute("message", "게시글이 삭제되었습니다.");
-            return "redirect:/board";  // 게시판으로 이동
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", "삭제 실패: " + e.getMessage());
-            return "redirect:/board/" + boardId;
-        }
+        return returnUrl;
     }
 }

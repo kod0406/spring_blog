@@ -1,13 +1,20 @@
 package com.jwt.repository;
 
-import org.springframework.data.jpa.repository.JpaRepository;
 import com.jwt.entity.Board;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.jwt.entity.Category;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
-public interface BoardRepository extends JpaRepository<Board, Long> {
-    // 최신순(쓴 날짜순) 정렬 + 페이징
-    Page<Board> findAllByOrderByCreatedAtDesc(Pageable pageable);
+public interface BoardRepository extends JpaRepository<Board, Long>, JpaSpecificationExecutor<Board> {
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Board b set b.category = null where b.category = :category")
+    int clearCategory(@Param("category") Category category);
+
+    List<Board> findAllByDraftTrueAndUpdatedAtBefore(LocalDateTime cutoff);
 }

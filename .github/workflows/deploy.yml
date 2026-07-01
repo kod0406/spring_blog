@@ -1,0 +1,167 @@
+name: JWT Blog Blue-Green Deploy
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jwt-blog-production
+  cancel-in-progress: false
+
+env:
+  IMAGE_NAME: jwt-blog
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: production
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Build and test
+        run: |
+          chmod +x gradlew
+          ./gradlew clean build --no-daemon
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build ARM64 image archive
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/arm64
+          tags: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          outputs: type=docker,dest=${{ runner.temp }}/jwt-blog-${{ github.sha }}.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Prepare external production configuration
+        env:
+          APPLICATION_PRODUCTION_PROPERTIES: ${{ secrets.APPLICATION_PRODUCTION_PROPERTIES }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+        run: |
+          set -Eeuo pipefail
+          [[ -n "${APPLICATION_PRODUCTION_PROPERTIES}" ]] || { echo "APPLICATION_PRODUCTION_PROPERTIES is empty." >&2; exit 1; }
+          [[ "${REDIS_PASSWORD}" =~ ^[A-Za-z0-9_-]{32,128}$ ]] || {
+            echo "REDIS_PASSWORD must be 32-128 characters using letters, digits, underscore, or hyphen." >&2
+            exit 1
+          }
+
+          config_file="${RUNNER_TEMP}/application-production-${GITHUB_SHA}.properties"
+          redis_password_file="${RUNNER_TEMP}/redis-password-${GITHUB_SHA}"
+          umask 077
+          printf '%s\n' "${APPLICATION_PRODUCTION_PROPERTIES}" > "${config_file}"
+
+          if grep -Eq '^[[:space:]]*spring\.data\.redis\.password[[:space:]]*=' "${config_file}"; then
+            echo "Keep spring.data.redis.password out of APPLICATION_PRODUCTION_PROPERTIES; use REDIS_PASSWORD." >&2
+            exit 1
+          fi
+
+          required_properties=(
+            spring.datasource.driver-class-name
+            spring.datasource.url
+            spring.datasource.username
+            spring.datasource.password
+            spring.jpa.database-platform
+            spring.jpa.hibernate.ddl-auto
+            spring.data.redis.host
+            spring.data.redis.port
+            spring.mail.host
+            spring.mail.username
+            spring.mail.password
+            jwt.secret
+            app.email-verification.enabled
+            oci.object-storage.auth-mode
+            oci.object-storage.image-region
+            oci.object-storage.video-region
+            oci.object-storage.namespace
+            oci.object-storage.image-namespace
+            oci.object-storage.video-namespace
+            oci.object-storage.image-bucket
+            oci.object-storage.video-bucket
+          )
+          for property_name in "${required_properties[@]}"; do
+            property_pattern="${property_name//./\\.}"
+            if ! grep -Eq "^[[:space:]]*${property_pattern}[[:space:]]*=" "${config_file}"; then
+              echo "Missing required production property: ${property_name}" >&2
+              exit 1
+            fi
+          done
+
+          printf '\nspring.data.redis.password=%s\n' "${REDIS_PASSWORD}" >> "${config_file}"
+          printf '%s' "${REDIS_PASSWORD}" > "${redis_password_file}"
+
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OCI_DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.OCI_SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts
+
+      - name: Upload image and deployment script
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          scp "${RUNNER_TEMP}/jwt-blog-${GITHUB_SHA}.tar" \
+            "${RUNNER_TEMP}/application-production-${GITHUB_SHA}.properties" \
+            "${RUNNER_TEMP}/redis-password-${GITHUB_SHA}" \
+            deploy/deploy-blue-green.sh \
+            "${OCI_USER}@${OCI_HOST}:/tmp/"
+
+      - name: Deploy blue-green
+        env:
+          OCI_HOST: ${{ secrets.OCI_HOST }}
+          OCI_USER: ${{ secrets.OCI_USER }}
+        run: |
+          ssh "${OCI_USER}@${OCI_HOST}" \
+            "set -Eeuo pipefail
+             config_stage='/tmp/application-production-${GITHUB_SHA}.properties'
+             redis_stage='/tmp/redis-password-${GITHUB_SHA}'
+             image_stage='/tmp/jwt-blog-${GITHUB_SHA}.tar'
+             script_stage='/tmp/deploy-blue-green.sh'
+             cleanup() { rm -f \"\${config_stage}\" \"\${redis_stage}\" \"\${image_stage}\" \"\${script_stage}\"; }
+             trap cleanup EXIT
+
+             sudo install -d -m 750 /opt/jwt-blog/config /opt/jwt-blog/deploy
+             if sudo test -f /opt/jwt-blog/config/redis-password && \
+                ! sudo cmp -s \"\${redis_stage}\" /opt/jwt-blog/config/redis-password; then
+               echo 'REDIS_PASSWORD differs from the running server. Rotate it manually before deployment.' >&2
+               exit 1
+             fi
+
+             sudo install -o root -m 640 \"\${config_stage}\" /opt/jwt-blog/config/application-production.properties.next
+             sudo chown root:10001 /opt/jwt-blog/config/application-production.properties.next
+             sudo mv -f /opt/jwt-blog/config/application-production.properties.next /opt/jwt-blog/config/application-production.properties
+             sudo install -o root -g root -m 600 \"\${redis_stage}\" /opt/jwt-blog/config/redis-password.next
+             sudo mv -f /opt/jwt-blog/config/redis-password.next /opt/jwt-blog/config/redis-password
+             sudo install -o root -g root -m 750 \"\${script_stage}\" /opt/jwt-blog/deploy/deploy-blue-green.sh
+             sudo /opt/jwt-blog/deploy/deploy-blue-green.sh '${GITHUB_SHA}'"
+
+      - name: Remove temporary deployment secrets
+        if: always()
+        run: |
+          rm -f \
+            "${RUNNER_TEMP}/application-production-${GITHUB_SHA}.properties" \
+            "${RUNNER_TEMP}/redis-password-${GITHUB_SHA}"

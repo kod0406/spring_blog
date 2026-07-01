@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>글머리 설정 - kod04061's Blog</title><th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block></head>
+<body>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a><div th:replace="~{fragments/common :: adminNavbar('categories')}"></div>
+<main id="main-content" class="container site-main"><div th:replace="~{fragments/common :: flash}"></div>
+    <header class="page-heading"><span class="eyebrow">Taxonomy</span><h1>글머리 관리</h1><p>게시글을 분류할 글머리와 공개 범위를 설정합니다.</p></header>
+    <section class="admin-panel mb-4" aria-labelledby="create-category-heading"><div class="admin-panel-header"><h2 id="create-category-heading">새 글머리</h2></div>
+        <form th:action="@{/admin/categories}" method="post" th:object="${categoryDto}" class="row g-3">
+            <div class="col-md-4 col-xl-2"><label class="form-label" for="key">URL key</label><input class="form-control" id="key" th:field="*{key}" placeholder="development" required></div>
+            <div class="col-md-4 col-xl-2"><label class="form-label" for="displayName">표시 이름</label><input class="form-control" id="displayName" th:field="*{displayName}" required></div>
+            <div class="col-md-4 col-xl-3"><label class="form-label" for="description">설명</label><input class="form-control" id="description" th:field="*{description}"></div>
+            <div class="col-md-4 col-xl-2"><label class="form-label" for="visibility">공개 범위</label><select class="form-select" id="visibility" th:field="*{visibility}"><option value="PUBLIC">PUBLIC</option><option value="PRIVATE">PRIVATE</option></select></div>
+            <div class="col-md-4 col-xl-1"><label class="form-label" for="sortOrder">정렬</label><input class="form-control" id="sortOrder" type="number" th:field="*{sortOrder}" value="0"></div>
+            <div class="col-md-4 col-xl-2 d-grid align-items-end"><button class="btn btn-primary" type="submit">글머리 생성</button></div>
+        </form>
+    </section>
+    <section class="admin-panel" aria-labelledby="category-list-heading"><div class="admin-panel-header"><h2 id="category-list-heading">등록된 글머리</h2><span class="text-body-secondary small" th:text="${categories.size()} + '개'">0개</span></div>
+        <div th:if="${categories.size() == 0}" class="empty-state"><div class="empty-state-icon" aria-hidden="true">#</div><h2>아직 글머리가 없습니다</h2><p>첫 글머리를 만들어 게시글을 분류해 보세요.</p></div>
+        <div th:if="${categories.size() > 0}" class="admin-list">
+            <article th:each="category : ${categories}" class="admin-item">
+                <form th:action="@{/admin/categories/{id}/edit(id=${category.categoryId})}" method="post" class="row g-2 align-items-end">
+                    <div class="col-md-4 col-xl-2"><span class="filter-label">URL key</span><code th:text="${category.key}">public</code></div>
+                    <div class="col-md-4 col-xl-2"><label class="filter-label" th:for="${'displayName-' + category.categoryId}">표시 이름</label><input class="form-control" th:id="${'displayName-' + category.categoryId}" name="displayName" th:value="${category.displayName}" required></div>
+                    <div class="col-md-4 col-xl-2"><label class="filter-label" th:for="${'description-' + category.categoryId}">설명</label><input class="form-control" th:id="${'description-' + category.categoryId}" name="description" th:value="${category.description}"></div>
+                    <div class="col-md-4 col-xl-2"><label class="filter-label" th:for="${'visibility-' + category.categoryId}">공개 범위</label><select class="form-select" th:id="${'visibility-' + category.categoryId}" name="visibility"><option value="PUBLIC" th:selected="${category.visibility.name() == 'PUBLIC'}">PUBLIC</option><option value="PRIVATE" th:selected="${category.visibility.name() == 'PRIVATE'}">PRIVATE</option></select></div>
+                    <div class="col-md-4 col-xl-1"><label class="filter-label" th:for="${'sortOrder-' + category.categoryId}">정렬</label><input class="form-control" th:id="${'sortOrder-' + category.categoryId}" type="number" name="sortOrder" th:value="${category.sortOrder}"></div>
+                    <div class="col-md-4 col-xl-1"><label class="filter-label" th:for="${'active-' + category.categoryId}">상태</label><select class="form-select" th:id="${'active-' + category.categoryId}" name="active"><option value="true" th:selected="${category.active}">활성</option><option value="false" th:selected="${!category.active}">비활성</option></select></div>
+                    <div class="col-md-6 col-xl-2 d-grid"><button class="btn btn-outline-primary btn-sm" type="submit">변경 저장</button></div>
+                </form>
+                <form th:action="@{/admin/categories/{id}/delete(id=${category.categoryId})}" method="post" class="mt-2" data-confirm-title="글머리 삭제" data-confirm="이 글머리를 삭제하시겠습니까? 사용 중인 글이 있다면 삭제가 거부될 수 있습니다." data-confirm-button="삭제"><button class="btn btn-outline-danger btn-sm" type="submit">삭제</button></form>
+            </article>
+        </div>
+    </section>
+</main>
+<th:block th:replace="~{fragments/common :: footer}"></th:block><th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
+</body></html>

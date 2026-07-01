@@ -1,11 +1,10 @@
 HELP.md
 .gradle
 build/
+data/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
-src/main/resources/application.yml
-
 ### STS ###
 .apt_generated
 .classpath
@@ -36,3 +35,19 @@ out/
 
 ### VS Code ###
 .vscode/
+
+# OCI credentials and external local configuration
+.oci/
+**/.oci/
+*.pem
+*.key
+oci-local.properties
+oci-*.properties
+*-oci.properties
+
+# Deployment secrets and local production configuration
+application-production.properties
+redis-password
+deploy.env
+.env
+*.env

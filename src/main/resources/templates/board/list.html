@@ -1,117 +1,116 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html lang="ko" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>게시판 - 간단 게시판</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .navbar-brand {
-            font-weight: bold;
-        }
-        .card {
-            margin-bottom: 1rem;
-        }
-        .board-title {
-            cursor: pointer;
-            color: #007bff;
-            text-decoration: none;
-        }
-        .board-title:hover {
-            text-decoration: underline;
-        }
-    </style>
+    <title>글 목록 - kod04061's Blog</title>
+    <th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block>
 </head>
 <body>
-    <!-- 네비게이션 바 -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand" href="/">간단 게시판</a>
+<a class="skip-link" href="#main-content">본문으로 건너뛰기</a>
+<div th:replace="~{fragments/common :: navbar('posts', true)}"></div>
 
-            <div class="navbar-nav ms-auto">
-                <!-- 인증된 사용자용 메뉴 -->
-                <div sec:authorize="isAuthenticated()">
-                    <a class="nav-link d-inline" href="/board">게시판</a>
-                    <a class="nav-link d-inline" href="/board/write">글쓰기</a>
-                    <form class="d-inline" th:action="@{/logout}" method="post">
-                        <button type="submit" class="btn btn-outline-light btn-sm ms-2">로그아웃</button>
-                    </form>
-                </div>
+<main id="main-content" class="container site-main">
+    <div th:replace="~{fragments/common :: flash}"></div>
+
+    <header class="page-heading-row">
+        <div class="page-heading mb-0"><span class="eyebrow">Archive</span><h1>글 목록</h1><p>필요한 기록을 검색하고 글머리별로 살펴보세요.</p></div>
+        <form sec:authorize="hasRole('ADMIN')" th:action="@{/admin/posts/drafts}" method="post">
+            <button type="submit" class="btn btn-primary">새 글 쓰기</button>
+        </form>
+    </header>
+
+    <form class="filter-card" method="get" action="/posts" role="search">
+        <input type="hidden" name="category" th:value="${selectedCategory}">
+        <div class="row g-2">
+            <div class="col-lg-5">
+                <label class="filter-label" for="keyword">검색어</label>
+                <input class="form-control" id="keyword" type="search" name="keyword" th:value="${keyword}" placeholder="제목, 본문, 작성자를 검색하세요">
             </div>
+            <div class="col-sm-6 col-lg-3">
+                <label class="filter-label" for="searchType">검색 범위</label>
+                <select class="form-select" id="searchType" name="searchType">
+                    <option value="title_content" th:selected="${searchType == 'title_content'}">제목+본문</option>
+                    <option value="title" th:selected="${searchType == 'title'}">제목</option>
+                    <option value="content" th:selected="${searchType == 'content'}">본문</option>
+                    <option value="comment" th:selected="${searchType == 'comment'}">댓글</option>
+                    <option value="author" th:selected="${searchType == 'author'}">작성자</option>
+                </select>
+            </div>
+            <div class="col-sm-6 col-lg-2">
+                <label class="filter-label" for="sort">정렬</label>
+                <select class="form-select" id="sort" name="sort">
+                    <option value="latest" th:selected="${sort == 'latest'}">최신순</option>
+                    <option value="oldest" th:selected="${sort == 'oldest'}">오래된순</option>
+                </select>
+            </div>
+            <div class="col-lg-2 d-grid"><button class="btn btn-primary" type="submit">검색</button></div>
         </div>
+    </form>
+
+    <nav class="category-pills mb-4" aria-label="글머리 필터">
+        <a class="category-pill" th:classappend="${selectedCategory == null} ? ' active'"
+           th:attr="aria-current=${selectedCategory == null} ? 'page'"
+           th:href="@{/posts(keyword=${keyword},searchType=${searchType},sort=${sort})}">전체</a>
+        <a th:each="category : ${categories}" class="category-pill"
+           th:classappend="${selectedCategory == category.key} ? ' active'"
+           th:attr="aria-current=${selectedCategory == category.key} ? 'page'"
+           th:href="@{/posts(category=${category.key},keyword=${keyword},searchType=${searchType},sort=${sort})}">
+            <span th:text="${category.displayName}">글머리</span>
+            <span th:if="${category.visibility.name() == 'PRIVATE'}" class="ms-1">· 비공개</span>
+        </a>
     </nav>
 
-    <!-- 메인 컨텐츠 -->
-    <div class="container mt-4">
-        <!-- 메시지 표시 -->
-        <div th:if="${message}" class="alert alert-success alert-dismissible fade show" role="alert">
-            <span th:text="${message}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-
-        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
-            <span th:text="${error}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        </div>
-
-        <!-- 페이지 제목 -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>게시판</h2>
-            <a href="/board/write" class="btn btn-primary">글쓰기</a>
-        </div>
-
-        <!-- 게시글 목록 -->
-        <div th:if="${boards.content.size() > 0}">
-            <div class="card" th:each="board : ${boards.content}">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <a th:href="@{/board/{id}(id=${board.boardId})}"
-                           th:text="${board.title}"
-                           class="board-title text-decoration-none"></a>
-                    </h5>
-                    <p class="card-text" th:text="${#strings.abbreviate(board.content, 100)}"></p>
-                    <div class="d-flex justify-content-between">
-                        <small class="text-muted">
-                            작성자: <span th:text="${board.authorName}"></span>
-                        </small>
-                        <small class="text-muted" th:text="${#temporals.format(board.createdAt, 'yyyy-MM-dd HH:mm')}"></small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 게시글이 없을 때 -->
-        <div th:if="${boards.content.size() == 0}" class="text-center py-5">
-            <h4 class="text-muted">게시글이 없습니다.</h4>
-            <p class="text-muted">첫 번째 게시글을 작성해보세요!</p>
-            <a href="/board/write" class="btn btn-primary">글쓰기</a>
-        </div>
-
-        <!-- 페이징 -->
-        <nav th:if="${totalPages > 1}" aria-label="Page navigation">
-            <ul class="pagination justify-content-center">
-                <!-- 이전 페이지 -->
-                <li class="page-item" th:classappend="${currentPage == 0} ? 'disabled'">
-                    <a class="page-link" th:href="@{/board(page=${currentPage - 1})}" th:if="${currentPage > 0}">이전</a>
-                    <span class="page-link" th:if="${currentPage == 0}">이전</span>
-                </li>
-
-                <!-- 페이지 번호들 -->
-                <li class="page-item"
-                    th:each="pageNum : ${#numbers.sequence(0, totalPages - 1)}"
-                    th:classappend="${pageNum == currentPage} ? 'active'">
-                    <a class="page-link" th:href="@{/board(page=${pageNum})}" th:text="${pageNum + 1}"></a>
-                </li>
-
-                <!-- 다음 페이지 -->
-                <li class="page-item" th:classappend="${currentPage == totalPages - 1} ? 'disabled'">
-                    <a class="page-link" th:href="@{/board(page=${currentPage + 1})}" th:if="${currentPage < totalPages - 1}">다음</a>
-                    <span class="page-link" th:if="${currentPage == totalPages - 1}">다음</span>
-                </li>
-            </ul>
-        </nav>
+    <div class="result-summary" role="status">
+        <strong th:text="${posts.totalElements + '개 결과'}">0개 결과</strong>
+        <span th:if="${posts.totalPages > 0}" th:text="${(posts.number + 1) + ' / ' + posts.totalPages + ' 페이지'}">1 / 1 페이지</span>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <section th:if="${posts.content.size() > 0}" class="result-list" aria-label="검색 결과">
+        <article class="result-card" th:each="post, iter : ${posts.content}" th:classappend="${post.masked} ? ' masked-card'">
+            <th:block th:if="${post.masked}">
+                <span class="badge-soft badge-private">PRIVATE</span>
+                <h2 class="result-card-title">권한이 필요한 글입니다</h2>
+                <p class="result-card-summary" th:text="${posts.number * posts.size + iter.index + 1} + '번째 게시글은 로그인 또는 권한 확인 후 읽을 수 있습니다.'">권한 안내</p>
+            </th:block>
+            <th:block th:unless="${post.masked}">
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge-soft" th:text="${post.categoryDisplayName}">미분류</span>
+                    <span th:if="${post.privatePost}" class="badge-soft badge-private">PRIVATE</span>
+                    <span th:if="${!post.published}" class="badge-soft badge-draft">비공개</span>
+                </div>
+                <h2 class="result-card-title"><a th:href="@{/posts/{id}(id=${post.postId})}" th:text="${post.title}">제목</a></h2>
+                <p class="result-card-summary" th:text="${#strings.abbreviate(post.content, 180)}">요약</p>
+                <div class="result-card-meta">
+                    <span th:text="${post.authorName}">작성자</span><span aria-hidden="true">·</span>
+                    <time th:datetime="${post.createdAt}" th:text="${#temporals.format(post.createdAt, 'yyyy.MM.dd HH:mm')}">작성일</time>
+                </div>
+            </th:block>
+        </article>
+    </section>
+
+    <section th:if="${posts.content.size() == 0}" class="empty-state">
+        <div class="empty-state-icon" aria-hidden="true">?</div><h2>조건에 맞는 글이 없습니다</h2><p>검색어나 글머리를 변경해 다시 찾아보세요.</p>
+    </section>
+
+    <nav th:if="${posts.totalPages > 1}" class="mt-4" aria-label="글 목록 페이지">
+        <ul class="pagination justify-content-center">
+            <li class="page-item" th:classappend="${posts.first} ? 'disabled'">
+                <span th:if="${posts.first}" class="page-link" aria-disabled="true">이전</span>
+                <a th:unless="${posts.first}" class="page-link" th:href="@{/posts(page=${posts.number - 1},category=${selectedCategory},keyword=${keyword},searchType=${searchType},sort=${sort})}" aria-label="이전 페이지">이전</a>
+            </li>
+            <li class="page-item" th:each="i : ${#numbers.sequence(0, posts.totalPages - 1)}" th:classappend="${i == posts.number} ? 'active'">
+                <a class="page-link" th:href="@{/posts(page=${i},category=${selectedCategory},keyword=${keyword},searchType=${searchType},sort=${sort})}" th:text="${i + 1}" th:attr="aria-current=${i == posts.number} ? 'page'">1</a>
+            </li>
+            <li class="page-item" th:classappend="${posts.last} ? 'disabled'">
+                <span th:if="${posts.last}" class="page-link" aria-disabled="true">다음</span>
+                <a th:unless="${posts.last}" class="page-link" th:href="@{/posts(page=${posts.number + 1},category=${selectedCategory},keyword=${keyword},searchType=${searchType},sort=${sort})}" aria-label="다음 페이지">다음</a>
+            </li>
+        </ul>
+    </nav>
+</main>
+
+<th:block th:replace="~{fragments/common :: footer}"></th:block>
+<th:block th:replace="~{fragments/common :: bootstrapScript}"></th:block>
 </body>
 </html>

@@ -1,105 +1,265 @@
 package com.jwt.service;
 
 import com.jwt.dto.BoardDto;
+import com.jwt.dto.BoardSearchCondition;
 import com.jwt.entity.Board;
+import com.jwt.entity.Category;
+import com.jwt.entity.CategoryVisibility;
 import com.jwt.entity.User;
+import com.jwt.exception.BadRequestException;
+import com.jwt.exception.NotFoundException;
 import com.jwt.repository.BoardRepository;
+import com.jwt.repository.CategoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
 public class BoardService {
 
     private final BoardRepository boardRepository;
+    private final CategoryRepository categoryRepository;
+    private final AuthorizationService authorizationService;
+    private final BoardSearchSpecificationFactory boardSearchSpecificationFactory;
+    private final BoardDtoMapper boardDtoMapper;
+    private final MediaLifecycleService mediaLifecycleService;
 
-    /**
-     * 게시글 생성
-     * @param requestDto 게시글 생성 요청 데이터
-     * @param user 현재 인증된 사용자 정보
-     * @return 생성된 게시글 정보
-     */
     @Transactional
     public BoardDto.Response createBoard(BoardDto.Request requestDto, User user) {
-        Board board = new Board();
-        board.setTitle(requestDto.getTitle());
-        board.setContent(requestDto.getContent());
-        board.setUser(user);
-        board.setCreatedAt(LocalDateTime.now());
-        board.setUpdatedAt(LocalDateTime.now());
+        authorizationService.requireAdmin(user);
+        validateRequest(requestDto);
 
-        Board savedBoard = boardRepository.save(board);
-        return new BoardDto.Response(savedBoard);
+        Board board = new Board();
+        applyRequest(board, requestDto);
+        board.setDraft(false);
+        board.setUser(user);
+
+        return boardDtoMapper.toResponse(boardRepository.save(board));
     }
 
-    /**
-     * 모든 게시글 조회 (페이징 처리)
-     * @param pageable 페이징 정보
-     * @return 페이징된 게시글 목록
-     */
+    @Transactional(readOnly = true)
+    public Page<BoardDto.Response> getPosts(String categoryKey, Pageable pageable, User viewer) {
+        return getPosts(categoryKey, null, null, null, pageable, viewer);
+    }
+
+    @Transactional
+    public BoardDto.Response createDraft(User user) {
+        authorizationService.requireAdmin(user);
+        Board board = new Board();
+        board.setTitle("");
+        board.setContent("");
+        board.setContentMarkdown("");
+        board.setPublished(false);
+        board.setDraft(true);
+        board.setUser(user);
+        return boardDtoMapper.toResponse(boardRepository.save(board));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BoardDto.Response> getPosts(String categoryKey,
+                                            String keyword,
+                                            String searchType,
+                                            String sort,
+                                            Pageable pageable,
+                                            User viewer) {
+        BoardSearchCondition condition = BoardSearchCondition.publicSearch(categoryKey, keyword, searchType, sort);
+        Pageable sortedPageable = sortedPageable(pageable, condition.getSort(), 10);
+        Specification<Board> specification = boardSearchSpecificationFactory.publicSpecification(condition);
+        return boardRepository.findAll(specification, sortedPageable)
+                .map(board -> boardDtoMapper.toListResponse(board, viewer));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BoardDto.Response> getPublicPosts(String categoryKey, Pageable pageable) {
+        return getPosts(categoryKey, null, null, null, pageable, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BoardDto.Response> getAdminPosts(String visibility, String categoryKey, Pageable pageable, User user) {
+        return getAdminPosts(visibility, categoryKey, null, null, null, pageable, user);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BoardDto.Response> getAdminPosts(String visibility,
+                                                 String categoryKey,
+                                                 String keyword,
+                                                 String searchType,
+                                                 String sort,
+                                                 Pageable pageable,
+                                                 User user) {
+        authorizationService.requireAdmin(user);
+        BoardSearchCondition condition = BoardSearchCondition.adminSearch(visibility, categoryKey, keyword, searchType, sort);
+        Pageable sortedPageable = sortedPageable(pageable, condition.getSort(), 20);
+        return boardRepository.findAll(boardSearchSpecificationFactory.adminSpecification(condition), sortedPageable)
+                .map(boardDtoMapper::toResponse);
+    }
+
     @Transactional(readOnly = true)
     public Page<BoardDto.Response> getAllBoards(Pageable pageable) {
-        return boardRepository.findAllByOrderByCreatedAtDesc(pageable)
-                .map(BoardDto.Response::new);
+        return getPublicPosts(null, pageable);
     }
 
-    /**
-     * 특정 게시글 조회
-     * @param boardId 조회할 게시글 ID
-     * @return 조회된 게시글 정보
-     */
+    @Transactional(readOnly = true)
+    public BoardDto.Response getBoardById(Long boardId, User viewer) {
+        return boardDtoMapper.toResponse(getReadablePostEntity(boardId, viewer));
+    }
+
     @Transactional(readOnly = true)
     public BoardDto.Response getBoardById(Long boardId) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 ID의 게시글이 없습니다: " + boardId));
-        return new BoardDto.Response(board);
+        return getBoardById(boardId, null);
     }
 
-    /**
-     * 게시글 수정
-     * @param boardId 수정할 게시글 ID
-     * @param requestDto 수정할 내용
-     * @param user 현재 인증된 사용자
-     * @return 수정된 게시글 정보
-     */
+    @Transactional(readOnly = true)
+    public Board getReadablePostEntity(Long boardId, User viewer) {
+        Board board = getPostEntity(boardId);
+        if (authorizationService.isAdmin(viewer)) {
+            return board;
+        }
+        if (isPubliclyReadable(board)) {
+            return board;
+        }
+        throw new NotFoundException("글을 찾을 수 없습니다.");
+    }
+
+    @Transactional(readOnly = true)
+    public Board getPublishedPostEntity(Long boardId) {
+        return getReadablePostEntity(boardId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public Board getPostEntity(Long boardId) {
+        return boardRepository.findById(boardId)
+                .orElseThrow(() -> new NotFoundException("글을 찾을 수 없습니다."));
+    }
+
+    @Transactional(readOnly = true)
+    public BoardDto.Response getAdminPost(Long boardId, User user) {
+        authorizationService.requireAdmin(user);
+        return boardDtoMapper.toResponse(getPostEntity(boardId));
+    }
+
     @Transactional
     public BoardDto.Response updateBoard(Long boardId, BoardDto.Request requestDto, User user) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 ID의 게시글이 없습니다: " + boardId));
+        authorizationService.requireAdmin(user);
+        validateRequest(requestDto);
 
-        // 게시글 작성자만 수정 가능
-        if (board.getUser().getUserId() != user.getUserId()) {
-            throw new IllegalArgumentException("게시글을 수정할 권한이 없습니다.");
-        }
+        Board board = getPostEntity(boardId);
+        applyRequest(board, requestDto);
+        board.setDraft(false);
+        mediaLifecycleService.reconcile(board, board.getContentMarkdown());
 
-        board.setTitle(requestDto.getTitle());
-        board.setContent(requestDto.getContent());
-        board.setUpdatedAt(LocalDateTime.now());
-
-        Board updatedBoard = boardRepository.save(board);
-        return new BoardDto.Response(updatedBoard);
+        return boardDtoMapper.toResponse(board);
     }
 
-    /**
-     * 게시글 삭제
-     * @param boardId 삭제할 게시글 ID
-     * @param user 현재 인증된 사용자
-     */
+    @Transactional
+    public BoardDto.Response saveDraft(Long boardId, BoardDto.Request requestDto, User user) {
+        authorizationService.requireAdmin(user);
+        Board board = getPostEntity(boardId);
+        applyDraftRequest(board, requestDto);
+        board.setPublished(false);
+        board.setDraft(true);
+        mediaLifecycleService.reconcile(board, board.getContentMarkdown());
+        return boardDtoMapper.toResponse(board);
+    }
+
     @Transactional
     public void deleteBoard(Long boardId, User user) {
-        Board board = boardRepository.findById(boardId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 ID의 게시글이 없습니다: " + boardId));
-
-        // 게시글 작성자만 삭제 가능
-        if (board.getUser().getUserId() != user.getUserId()) {
-            throw new IllegalArgumentException("게시글을 삭제할 권한이 없습니다.");
-        }
-
+        authorizationService.requireAdmin(user);
+        Board board = getPostEntity(boardId);
+        mediaLifecycleService.detachForBoardDeletion(board);
         boardRepository.delete(board);
     }
+
+    public boolean canComment(Board board, User user) {
+        if (isPrivateCategory(board)) {
+            return authorizationService.isAdmin(user);
+        }
+        return authorizationService.isActiveUser(user);
+    }
+
+    public boolean isPrivateCategory(Board board) {
+        return board.getCategory() != null && board.getCategory().getVisibility() == CategoryVisibility.PRIVATE;
+    }
+
+    public boolean isPubliclyReadable(Board board) {
+        return !board.isDraftPost() && !Boolean.FALSE.equals(board.getPublished()) && !isPrivateCategory(board);
+    }
+
+    private void applyRequest(Board board, BoardDto.Request requestDto) {
+        String rawMarkdown = requestDto.getContentMarkdown() != null
+                ? requestDto.getContentMarkdown()
+                : requestDto.getContent();
+        String markdown = rawMarkdown.trim();
+
+        board.setTitle(requestDto.getTitle().trim());
+        board.setContent(markdown);
+        board.setContentMarkdown(markdown);
+        board.setPublished(requestDto.getPublished() == null || requestDto.getPublished());
+
+        if (requestDto.getCategoryKey() == null || requestDto.getCategoryKey().isBlank()) {
+            board.setCategory(null);
+            return;
+        }
+
+        Category category = categoryRepository.findByKey(requestDto.getCategoryKey().trim())
+                .filter(it -> Boolean.TRUE.equals(it.getActive()))
+                .orElseThrow(() -> new NotFoundException("글머리를 찾을 수 없습니다."));
+        board.setCategory(category);
+    }
+
+    private Pageable sortedPageable(Pageable pageable, String sort, int defaultSize) {
+        String effectiveSort = boardSearchSpecificationFactory.effectiveSort(sort);
+        int page = pageable == null ? 0 : Math.max(pageable.getPageNumber(), 0);
+        int size = pageable == null ? defaultSize : pageable.getPageSize();
+        size = Math.max(1, Math.min(size, 100));
+        Sort.Direction direction = "oldest".equals(effectiveSort) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Sort resolvedSort = Sort.by(direction, "createdAt").and(Sort.by(direction, "boardId"));
+        return PageRequest.of(page, size, resolvedSort);
+    }
+
+    private void applyDraftRequest(Board board, BoardDto.Request requestDto) {
+        if (requestDto == null) {
+            throw new BadRequestException("임시 저장할 글 정보가 없습니다.");
+        }
+        String title = requestDto.getTitle() == null ? "" : requestDto.getTitle().trim();
+        if (title.length() > 200) {
+            throw new BadRequestException("제목은 200자 이하로 입력해 주세요.");
+        }
+        String rawMarkdown = requestDto.getContentMarkdown() != null
+                ? requestDto.getContentMarkdown()
+                : requestDto.getContent();
+        String markdown = rawMarkdown == null ? "" : rawMarkdown;
+        board.setTitle(title);
+        board.setContent(markdown);
+        board.setContentMarkdown(markdown);
+
+        if (requestDto.getCategoryKey() == null || requestDto.getCategoryKey().isBlank()) {
+            board.setCategory(null);
+            return;
+        }
+        Category category = categoryRepository.findByKey(requestDto.getCategoryKey().trim())
+                .filter(it -> Boolean.TRUE.equals(it.getActive()))
+                .orElseThrow(() -> new NotFoundException("글머리를 찾을 수 없습니다."));
+        board.setCategory(category);
+    }
+
+    private void validateRequest(BoardDto.Request requestDto) {
+        if (requestDto == null || requestDto.getTitle() == null || requestDto.getTitle().trim().isEmpty()) {
+            throw new BadRequestException("제목을 입력해 주세요.");
+        }
+        String markdown = requestDto.getContentMarkdown() != null ? requestDto.getContentMarkdown() : requestDto.getContent();
+        if (markdown == null || markdown.trim().isEmpty()) {
+            throw new BadRequestException("내용을 입력해 주세요.");
+        }
+        if (requestDto.getTitle().trim().length() > 200) {
+            throw new BadRequestException("제목은 200자 이하로 입력해 주세요.");
+        }
+    }
+
 }

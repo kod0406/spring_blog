@@ -1,0 +1,99 @@
+# Oracle TLS external properties example (do not commit real credentials):
+# spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
+# spring.datasource.url=jdbc:oracle:thin:@<OCI_CONSOLE_TLS_CONNECTION_STRING>
+# spring.datasource.username=<ORACLE_DB_USERNAME>
+# spring.datasource.password=<SET_OUTSIDE_PROJECT>
+# spring.jpa.database-platform=org.hibernate.dialect.OracleDialect
+# spring.jpa.hibernate.ddl-auto=update
+# spring.h2.console.enabled=false
+# spring.datasource.hikari.maximum-pool-size=5
+# spring.datasource.hikari.minimum-idle=1
+# spring.datasource.hikari.connection-timeout=30000
+# Load the external file with:
+# SPRING_CONFIG_ADDITIONAL_LOCATION=file:/opt/jwt-blog/config/application-production.properties
+# Keep ddl-auto=update for the current schema bootstrap; use validate after adopting migrations.
+
+spring:
+  application:
+    name: JWT
+  thymeleaf:
+    cache: ${THYMELEAF_CACHE:true}
+  datasource:
+    driver-class-name: ${DB_DRIVER}
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:validate}
+    database-platform: ${JPA_DIALECT}
+  h2:
+    console:
+      enabled: ${H2_CONSOLE_ENABLED:false}
+      path: /h2-console
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
+      repositories:
+        enabled: false
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          ssl:
+            trust: ${MAIL_HOST}
+  servlet:
+    multipart:
+      max-file-size: 60MB
+      max-request-size: 61MB
+
+server:
+  port: ${SERVER_PORT:8080}
+
+jwt:
+  secret: ${JWT_SECRET}
+  refresh-Millis: ${JWT_REFRESH_MILLIS:21600000}
+  expiration-Millis: ${JWT_EXPIRATION_MILLIS:300000}
+  access-cookie-name: jwt_token
+  refresh-cookie-name: jwt_refresh_token
+  cookie-secure: ${JWT_COOKIE_SECURE:true}
+  cookie-same-site: ${JWT_COOKIE_SAME_SITE:Lax}
+  refresh-cookie-path: /
+
+app:
+  email-verification:
+    enabled: ${EMAIL_VERIFICATION_ENABLED:false}
+  media:
+    orphan-retention-hours: ${MEDIA_ORPHAN_RETENTION_HOURS:24}
+    cleanup-interval-ms: ${MEDIA_CLEANUP_INTERVAL_MS:3600000}
+  admin:
+    email: ${ADMIN_EMAIL:${OWNER_EMAIL:}}
+    password: ${ADMIN_PASSWORD:${OWNER_PASSWORD:}}
+    name: ${ADMIN_NAME:${OWNER_NAME:Admin}}
+  owner:
+    email: ${OWNER_EMAIL:}
+    password: ${OWNER_PASSWORD:}
+    name: ${OWNER_NAME:Admin}
+
+oci:
+  object-storage:
+    auth-mode: ${OCI_AUTH_MODE:instance-principal}
+    config-file: ${OCI_CONFIG_FILE:}
+    profile: ${OCI_PROFILE:DEFAULT}
+    region: ${OCI_REGION:}
+    image-region: ${OCI_IMAGE_REGION:${OCI_REGION:}}
+    video-region: ${OCI_VIDEO_REGION:${OCI_REGION:}}
+    namespace: ${OCI_NAMESPACE:}
+    image-namespace: ${OCI_IMAGE_NAMESPACE:${OCI_NAMESPACE:}}
+    video-namespace: ${OCI_VIDEO_NAMESPACE:${OCI_NAMESPACE:}}
+    image-bucket: ${OCI_IMAGE_BUCKET:}
+    video-bucket: ${OCI_VIDEO_BUCKET:}
