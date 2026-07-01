@@ -1,4 +1,4 @@
-# 1인 관리자 블로그
+﻿# 1인 관리자 블로그
 
 Spring Boot, Thymeleaf, JWT 쿠키 인증을 사용하는 개인 관리자 블로그입니다. 관리자는 `ADMIN` 하나만 사용하고, 일반 회원은 관리자 승인 후 공개 글에 댓글과 답글을 작성할 수 있습니다.
 
@@ -251,7 +251,6 @@ oci.object-storage.video-bucket=사용자 직접 입력
 - 동영상 Range 조회와 206 응답
 - 초안 임시 저장·최종 게시·공개 조회 제외
 - ORPHAN 24시간 정리와 OCI 삭제 실패 재시도
-- 주요 Java/Thymeleaf/README 파일의 깨진 한글 문자열 마커 검사
 
 실제 Redis 통합 테스트는 Testcontainers의 `redis:7.4-alpine`을 사용합니다. Docker daemon이 없으면 해당 테스트 2개는 skip되며 나머지 단위·통합 테스트는 계속 실행됩니다.
 
@@ -310,29 +309,3 @@ server {
 배포 스크립트는 새 색상 컨테이너의 API 응답을 확인한 뒤 Nginx를 전환합니다. 실패하면 새 컨테이너를 제거하고, 전환 이후 실패한 경우 이전 Nginx 대상을 복원합니다. 성공하면 이전 애플리케이션 컨테이너는 제거하지만 직전 Docker 이미지는 롤백을 위해 유지합니다. 이미지 전체 자동 정리는 수행하지 않습니다.
 
 Redis는 별도 단일 컨테이너와 영속 볼륨을 사용하므로 애플리케이션 blue/green 교체에 포함되지 않습니다. 운영 전에는 Docker, Nginx, `curl`, `flock`, Redis 데이터 디렉터리 권한, OCI Instance Principal의 Object Storage IAM 권한을 확인해야 합니다.
-
-## 리팩터링 구조 메모
-
-- 권한 검증은 `AuthorizationService`를 중심으로 수행하며, 관리자 전용 서비스 메서드는 컨트롤러 보안 설정에만 의존하지 않습니다.
-- 공개/관리자 경로 목록은 `SecurityPaths`에서 관리하고 `SecurityConfig`가 적용합니다. JWT filter는 경로를 별도 판단하지 않고 인증 실패를 Security filter chain에 위임합니다.
-- 게시글 검색 조건은 `BoardSearchSpecificationFactory`, 게시글 DTO 변환은 `BoardDtoMapper`가 담당합니다.
-- 관리자 댓글 조회는 전체 댓글을 메모리에서 필터링하지 않고 Repository Specification으로 필터링합니다.
-- 공통 Thymeleaf header/footer/flash/확인 modal 영역은 `templates/fragments/common.html` fragment를 사용합니다.
-- 공통 디자인은 `static/css/site.css`, 테마·독서 설정은 `static/js/site-preferences.js`에서 관리합니다.
-- 변경 후 기준 검증 명령은 `./gradlew test`와 최종 `./gradlew build`입니다.
-
-### 리팩터링 마감 메모
-
-- 관리자 REST API와 관리자 Web 화면은 분리 유지합니다. REST API는 JSON `ApiResponse`, Web 화면은 Thymeleaf template/redirect를 반환합니다.
-- Web redirect/flash 반복 처리는 `WebRedirectSupport`로 공통화했습니다.
-- 게시글, 글머리, 댓글, 미디어, 관리자 회원 응답 변환은 mapper 컴포넌트가 담당합니다.
-- Thymeleaf 공통 UI는 `fragments/common.html`의 `navbar`, `adminNavbar`, `authNavbar`, `flash`, `footer` fragment로 정리했습니다.
-- 첫 방문 테마는 시스템 설정을 따르며, 사용자가 선택한 테마·독서 글꼴·글자 크기는 브라우저 local storage에 저장합니다.
-- `loginDto` 클래스명 변경은 이번 안정화 범위에서 제외했습니다. public API 영향은 없지만 import 변경 범위가 넓어 별도 소형 PR로 처리하는 것이 안전합니다.
-
-### Refactor completion notes
-
-- `UserController`의 잘못된 요청은 공통 `ApiExceptionHandler`가 처리합니다. 계정 복구 요청은 이메일 존재 여부와 무관하게 동일한 성공 응답을 반환합니다.
-- Common Thymeleaf resources are loaded by `fragments/common.html`: Bootstrap 5.3, `site.css`, `site-preferences.js`, and Toast UI editor assets.
-- `ThymeleafRenderSmokeTest` verifies public, post, auth, admin, and static design resources render or load successfully.
-- `UserApiExceptionHandlingTest` verifies user API validation errors still return the shared `ApiResponse` error shape.
