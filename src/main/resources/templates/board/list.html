@@ -14,7 +14,7 @@
     <div th:replace="~{fragments/common :: flash}"></div>
 
     <header class="page-heading-row">
-        <div class="page-heading mb-0"><span class="eyebrow">Archive</span><h1>글 목록</h1><p>필요한 기록을 검색하고 글머리별로 살펴보세요.</p></div>
+        <div class="page-heading mb-0"><span class="eyebrow">Archive</span><h1>글 목록</h1><p>흩어진 생각들이 모여 하나의 아카이브가 됩니다.</p></div>
         <form sec:authorize="hasRole('ADMIN')" th:action="@{/admin/posts/drafts}" method="post">
             <button type="submit" class="btn btn-primary">새 글 쓰기</button>
         </form>
@@ -66,26 +66,38 @@
         <span th:if="${posts.totalPages > 0}" th:text="${(posts.number + 1) + ' / ' + posts.totalPages + ' 페이지'}">1 / 1 페이지</span>
     </div>
 
-    <section th:if="${posts.content.size() > 0}" class="result-list" aria-label="검색 결과">
-        <article class="result-card" th:each="post, iter : ${posts.content}" th:classappend="${post.masked} ? ' masked-card'">
-            <th:block th:if="${post.masked}">
-                <span class="badge-soft badge-private">PRIVATE</span>
-                <h2 class="result-card-title">권한이 필요한 글입니다</h2>
-                <p class="result-card-summary" th:text="${posts.number * posts.size + iter.index + 1} + '번째 게시글은 로그인 또는 권한 확인 후 읽을 수 있습니다.'">권한 안내</p>
-            </th:block>
-            <th:block th:unless="${post.masked}">
-                <div class="d-flex flex-wrap gap-2">
-                    <span class="badge-soft" th:text="${post.categoryDisplayName}">미분류</span>
-                    <span th:if="${post.privatePost}" class="badge-soft badge-private">PRIVATE</span>
-                    <span th:if="${!post.published}" class="badge-soft badge-draft">비공개</span>
-                </div>
-                <h2 class="result-card-title"><a th:href="@{/posts/{id}(id=${post.postId})}" th:text="${post.title}">제목</a></h2>
-                <p class="result-card-summary" th:text="${#strings.abbreviate(post.content, 180)}">요약</p>
-                <div class="result-card-meta">
-                    <span th:text="${post.authorName}">작성자</span><span aria-hidden="true">·</span>
-                    <time th:datetime="${post.createdAt}" th:text="${#temporals.format(post.createdAt, 'yyyy.MM.dd HH:mm')}">작성일</time>
-                </div>
-            </th:block>
+    <section th:if="${posts.content.size() > 0}" class="editorial-feed" aria-label="검색 결과">
+        <article th:each="post, iter : ${posts.content}"
+                 th:class="${post.masked} ? 'editorial-entry masked-entry' : 'editorial-entry'">
+            <div class="editorial-entry-main">
+                <th:block th:if="${post.masked}">
+                    <div class="editorial-entry-meta">
+                        <span class="badge-soft badge-private">PRIVATE</span>
+                    </div>
+                    <h2>권한이 필요한 글입니다</h2>
+                    <p th:text="${posts.number * posts.size + iter.index + 1} + '번째 게시글은 로그인 또는 권한 확인 후 읽을 수 있습니다.'">권한 안내</p>
+                </th:block>
+                <th:block th:unless="${post.masked}">
+                    <div class="editorial-entry-meta">
+                        <span th:text="${post.authorName}">작성자</span>
+                        <span aria-hidden="true">·</span>
+                        <time th:datetime="${post.createdAt}" th:text="${#temporals.format(post.createdAt, 'yyyy.MM.dd')}">작성일</time>
+                        <span aria-hidden="true">·</span>
+                        <span th:with="readMin=${T(java.lang.Math).max(1, #strings.length(post.content) / 500)}" th:text="${readMin} + '분 읽기'">5분 읽기</span>
+                        <th:block th:if="${post.privatePost}">
+                            <span aria-hidden="true">·</span>
+                            <span class="badge-soft badge-private" style="font-size:.65rem;padding:.2rem .4rem">PRIVATE</span>
+                        </th:block>
+                        <th:block th:if="${!post.published}">
+                            <span aria-hidden="true">·</span>
+                            <span class="badge-soft badge-draft" style="font-size:.65rem;padding:.2rem .4rem">비공개</span>
+                        </th:block>
+                    </div>
+                    <h2><a th:href="@{/posts/{id}(id=${post.postId})}" th:text="${post.title}">제목</a></h2>
+                    <p th:text="${#strings.abbreviate(post.content, 200)}">요약</p>
+                </th:block>
+            </div>
+            <a th:unless="${post.masked}" class="editorial-entry-arrow" th:href="@{/posts/{id}(id=${post.postId})}" aria-label="글 읽기">→</a>
         </article>
     </section>
 

@@ -25,6 +25,8 @@
                     <div class="article-meta">
                         <span th:text="${post.authorName}">작성자</span><span aria-hidden="true">·</span>
                         <time th:datetime="${post.createdAt}" th:text="${#temporals.format(post.createdAt, 'yyyy.MM.dd HH:mm')}">작성일</time>
+                        <span aria-hidden="true">·</span>
+                        <span th:with="readMin=${T(java.lang.Math).max(1, #strings.length(post.content) / 500)}" th:text="${readMin} + '분 읽기'">5분 읽기</span>
                     </div>
                     <div th:if="${isAdmin}" class="d-flex gap-2">
                         <a th:href="@{/admin/posts/{id}/edit(id=${post.postId})}" class="btn btn-outline-primary btn-sm">수정</a>

@@ -17,7 +17,7 @@
     <header class="editorial-page-header">
         <span class="eyebrow">kod04061's Blog</span>
         <h1 id="recent-heading">최근 글</h1>
-        <p>배운 것과 고민한 것을 기록하고, 다시 꺼내볼 수 있는 지식으로 정리합니다.</p>
+        <p>코드 한 줄, 생각 한 조각. 기록은 가장 정직한 성장의 흔적입니다.</p>
     </header>
 
     <nav class="category-pills mb-4" aria-label="글머리별 글 보기">
@@ -27,25 +27,30 @@
            th:text="${category.displayName}">글머리</a>
     </nav>
 
-    <section th:if="${posts.size() > 0}" class="post-grid" aria-labelledby="recent-heading">
-        <article class="post-card" th:each="post, iter : ${posts}" th:classappend="${post.masked} ? ' masked-card'">
-            <div class="post-card-visual" aria-hidden="true"></div>
-            <div class="post-card-body">
+    <section th:if="${posts.size() > 0}" class="editorial-feed" aria-labelledby="recent-heading">
+        <article th:each="post, iter : ${posts}"
+                 th:class="${post.masked} ? 'editorial-entry masked-entry' : 'editorial-entry'">
+            <div class="editorial-entry-main">
                 <th:block th:if="${post.masked}">
-                    <span class="badge-soft badge-private">PRIVATE</span>
-                    <h2 class="post-card-title">권한이 필요한 글입니다</h2>
-                    <p class="post-card-summary" th:text="${iter.index + 1} + '번째 게시글은 로그인 또는 권한 확인 후 읽을 수 있습니다.'">권한 안내</p>
+                    <div class="editorial-entry-meta">
+                        <span class="badge-soft badge-private">PRIVATE</span>
+                    </div>
+                    <h2>권한이 필요한 글입니다</h2>
+                    <p th:text="${iter.index + 1} + '번째 게시글은 로그인 또는 권한 확인 후 읽을 수 있습니다.'">권한 안내</p>
                 </th:block>
                 <th:block th:unless="${post.masked}">
-                    <span class="badge-soft" th:text="${post.categoryDisplayName}">미분류</span>
-                    <h2 class="post-card-title"><a th:href="@{/posts/{id}(id=${post.postId})}" th:text="${post.title}">제목</a></h2>
-                    <p class="post-card-summary" th:text="${#strings.abbreviate(post.content, 150)}">요약</p>
-                    <div class="post-card-meta">
-                        <span th:text="${post.authorName}">작성자</span><span aria-hidden="true">·</span>
+                    <div class="editorial-entry-meta">
+                        <span th:text="${post.authorName}">작성자</span>
+                        <span aria-hidden="true">·</span>
                         <time th:datetime="${post.createdAt}" th:text="${#temporals.format(post.createdAt, 'yyyy.MM.dd')}">작성일</time>
+                        <span aria-hidden="true">·</span>
+                        <span th:with="readMin=${T(java.lang.Math).max(1, #strings.length(post.content) / 500)}" th:text="${readMin} + '분 읽기'">5분 읽기</span>
                     </div>
+                    <h2><a th:href="@{/posts/{id}(id=${post.postId})}" th:text="${post.title}">제목</a></h2>
+                    <p th:text="${#strings.abbreviate(post.content, 180)}">요약</p>
                 </th:block>
             </div>
+            <a th:unless="${post.masked}" class="editorial-entry-arrow" th:href="@{/posts/{id}(id=${post.postId})}" aria-label="글 읽기">→</a>
         </article>
     </section>
 
