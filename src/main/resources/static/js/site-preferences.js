@@ -3,9 +3,9 @@
 
     const root = document.documentElement;
     const storageKeys = {
-        theme: 'jwt-blog.theme',
-        font: 'jwt-blog.readerFont',
-        scale: 'jwt-blog.readerScale'
+        theme: 'kod04061-blog.theme',
+        font: 'kod04061-blog.readerFont',
+        scale: 'kod04061-blog.readerScale'
     };
     const allowedFonts = new Set(['sans', 'serif', 'mono']);
     const allowedScales = new Set(['small', 'medium', 'large']);

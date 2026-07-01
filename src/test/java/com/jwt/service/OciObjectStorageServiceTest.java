@@ -31,7 +31,10 @@ class OciObjectStorageServiceTest {
     OciObjectStorageClientFactory clientFactory;
 
     @Mock
-    ObjectStorage objectStorage;
+    ObjectStorage imageStorage;
+
+    @Mock
+    ObjectStorage videoStorage;
 
     OciObjectStorageService storageService;
 
@@ -39,33 +42,42 @@ class OciObjectStorageServiceTest {
     void setUp() {
         OciObjectStorageProperties properties = new OciObjectStorageProperties();
         properties.setNamespace("test-namespace");
+        properties.setImageNamespace("image-namespace");
+        properties.setVideoNamespace("video-namespace");
         properties.setImageBucket("private-images");
         properties.setVideoBucket("private-videos");
-        when(clientFactory.getClient()).thenReturn(objectStorage);
+        when(clientFactory.getClient(any(MediaType.class))).thenAnswer(invocation ->
+                invocation.getArgument(0) == MediaType.IMAGE ? imageStorage : videoStorage);
         storageService = new OciObjectStorageService(clientFactory, properties);
     }
 
     @Test
     void uploadSelectsImageAndVideoBucketsAndKeepsInputStreams() {
-        when(objectStorage.putObject(any())).thenReturn(PutObjectResponse.builder().eTag("etag").build());
+        when(imageStorage.putObject(any())).thenReturn(PutObjectResponse.builder().eTag("image-etag").build());
+        when(videoStorage.putObject(any())).thenReturn(PutObjectResponse.builder().eTag("video-etag").build());
 
         storageService.upload(MediaType.IMAGE, "images/a", "image/png", 3,
                 new ByteArrayInputStream(new byte[]{1, 2, 3}));
         storageService.upload(MediaType.VIDEO, "videos/b", "video/mp4", 4,
                 new ByteArrayInputStream(new byte[]{1, 2, 3, 4}));
 
-        ArgumentCaptor<PutObjectRequest> captor = ArgumentCaptor.forClass(PutObjectRequest.class);
-        verify(objectStorage, org.mockito.Mockito.times(2)).putObject(captor.capture());
-        assertThat(captor.getAllValues()).extracting(PutObjectRequest::getBucketName)
-                .containsExactly("private-images", "private-videos");
-        assertThat(captor.getAllValues()).extracting(PutObjectRequest::getContentLength)
-                .containsExactly(3L, 4L);
-        assertThat(captor.getAllValues()).allSatisfy(request -> assertThat(request.getPutObjectBody()).isNotNull());
+        ArgumentCaptor<PutObjectRequest> imageCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        ArgumentCaptor<PutObjectRequest> videoCaptor = ArgumentCaptor.forClass(PutObjectRequest.class);
+        verify(imageStorage).putObject(imageCaptor.capture());
+        verify(videoStorage).putObject(videoCaptor.capture());
+        assertThat(imageCaptor.getValue().getNamespaceName()).isEqualTo("image-namespace");
+        assertThat(imageCaptor.getValue().getBucketName()).isEqualTo("private-images");
+        assertThat(imageCaptor.getValue().getContentLength()).isEqualTo(3L);
+        assertThat(imageCaptor.getValue().getPutObjectBody()).isNotNull();
+        assertThat(videoCaptor.getValue().getNamespaceName()).isEqualTo("video-namespace");
+        assertThat(videoCaptor.getValue().getBucketName()).isEqualTo("private-videos");
+        assertThat(videoCaptor.getValue().getContentLength()).isEqualTo(4L);
+        assertThat(videoCaptor.getValue().getPutObjectBody()).isNotNull();
     }
 
     @Test
     void rangeDownloadAndDeleteUseExpectedBucketAndHeaders() throws Exception {
-        when(objectStorage.getObject(any())).thenReturn(GetObjectResponse.builder()
+        when(videoStorage.getObject(any())).thenReturn(GetObjectResponse.builder()
                 .inputStream(new ByteArrayInputStream("data".getBytes(StandardCharsets.UTF_8)))
                 .contentLength(4L)
                 .contentType("video/mp4")
@@ -81,13 +93,15 @@ class OciObjectStorageServiceTest {
         storageService.delete(MediaType.VIDEO, "videos/b");
 
         ArgumentCaptor<GetObjectRequest> getCaptor = ArgumentCaptor.forClass(GetObjectRequest.class);
-        verify(objectStorage).getObject(getCaptor.capture());
+        verify(videoStorage).getObject(getCaptor.capture());
+        assertThat(getCaptor.getValue().getNamespaceName()).isEqualTo("video-namespace");
         assertThat(getCaptor.getValue().getBucketName()).isEqualTo("private-videos");
         assertThat(getCaptor.getValue().getRange().getStartByte()).isEqualTo(0L);
         assertThat(getCaptor.getValue().getRange().getEndByte()).isEqualTo(3L);
 
         ArgumentCaptor<DeleteObjectRequest> deleteCaptor = ArgumentCaptor.forClass(DeleteObjectRequest.class);
-        verify(objectStorage).deleteObject(deleteCaptor.capture());
+        verify(videoStorage).deleteObject(deleteCaptor.capture());
+        assertThat(deleteCaptor.getValue().getNamespaceName()).isEqualTo("video-namespace");
         assertThat(deleteCaptor.getValue().getBucketName()).isEqualTo("private-videos");
     }
 }

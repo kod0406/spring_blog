@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.thymeleaf.org">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>댓글 관리 - JWT Blog</title><th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>댓글 관리 - kod04061's Blog</title><th:block th:replace="~{fragments/common :: bootstrapCss}"></th:block></head>
 <body>
 <a class="skip-link" href="#main-content">본문으로 건너뛰기</a><div th:replace="~{fragments/common :: adminNavbar('comments')}"></div>
 <main id="main-content" class="container site-main"><div th:replace="~{fragments/common :: flash}"></div>
-    <header class="page-heading"><span class="eyebrow">Discussion</span><h1>댓글 관리</h1><p>게시글과 작성자, 삭제 상태를 기준으로 댓글을 확인합니다.</p></header>
+    <header class="page-heading"><span class="eyebrow">Discussion</span><h1>댓글 관리</h1></header>
     <form class="filter-card" method="get" action="/admin/comments" role="search"><div class="row g-2">
         <div class="col-sm-6 col-lg-2"><label class="filter-label" for="postId">글 ID</label><input class="form-control" id="postId" type="number" name="postId" th:value="${postId}" placeholder="예: 12"></div>
         <div class="col-sm-6 col-lg-2"><label class="filter-label" for="author">작성자</label><input class="form-control" id="author" name="author" th:value="${author}" placeholder="이름 또는 이메일"></div>

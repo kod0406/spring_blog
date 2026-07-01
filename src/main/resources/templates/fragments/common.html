@@ -11,9 +11,9 @@
                 try { return localStorage.getItem(key); }
                 catch (error) { storageAvailable = false; return null; }
             };
-            const storedTheme = read('jwt-blog.theme');
-            const storedFont = read('jwt-blog.readerFont');
-            const storedScale = read('jwt-blog.readerScale');
+            const storedTheme = read('kod04061-blog.theme');
+            const storedFont = read('kod04061-blog.readerFont');
+            const storedScale = read('kod04061-blog.readerScale');
             const systemDark = storageAvailable && window.matchMedia
                 && window.matchMedia('(prefers-color-scheme: dark)').matches;
             root.dataset.bsTheme = !storageAvailable
@@ -37,7 +37,7 @@
 <body>
 <nav th:fragment="navbar(active, readerTools)" class="navbar navbar-expand-lg site-navbar sticky-top" aria-label="주요 메뉴">
     <div class="container">
-        <a class="navbar-brand" href="/" aria-label="JWT Blog 홈" th:attr="aria-current=${active == 'home'} ? 'page'">JWT<span>Blog</span></a>
+        <a class="navbar-brand" href="/" aria-label="kod04061's Blog 홈" th:attr="aria-current=${active == 'home'} ? 'page'">kod04061's<span>Blog</span></a>
         <div class="d-flex align-items-center gap-2 ms-auto d-lg-none">
             <button type="button" class="icon-button theme-toggle" data-theme-toggle aria-label="다크 모드로 전환">
                 <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>
@@ -92,7 +92,7 @@
 
 <nav th:fragment="adminNavbar(active)" class="navbar navbar-expand-lg site-navbar sticky-top" aria-label="관리 메뉴">
     <div class="container">
-        <a class="navbar-brand" href="/">JWT<span>Blog</span><small>Admin</small></a>
+        <a class="navbar-brand" href="/">kod04061's<span>Blog</span><small>Admin</small></a>
         <div class="d-flex align-items-center gap-2 ms-auto d-lg-none">
             <button type="button" class="icon-button theme-toggle" data-theme-toggle aria-label="다크 모드로 전환">
                 <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>
@@ -125,7 +125,7 @@
 
 <nav th:fragment="authNavbar(active)" class="navbar navbar-expand-lg site-navbar" aria-label="인증 메뉴">
     <div class="container">
-        <a class="navbar-brand" href="/">JWT<span>Blog</span></a>
+        <a class="navbar-brand" href="/">kod04061's<span>Blog</span></a>
         <div class="d-flex align-items-center gap-2 ms-auto d-lg-none">
             <button type="button" class="icon-button theme-toggle" data-theme-toggle aria-label="다크 모드로 전환">
                 <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path></svg>
@@ -158,9 +158,9 @@
 <th:block th:fragment="footer">
     <footer class="site-footer">
         <div class="container site-footer-inner">
-            <div><a class="footer-brand" href="/">JWT Blog</a><p>기록하고 공유하며 함께 성장합니다.</p></div>
+            <div><a class="footer-brand" href="/">kod04061's Blog</a><p>개인용 블로그.</p></div>
             <nav aria-label="하단 메뉴"><a href="/">홈</a><a href="/posts">글 목록</a><a href="/login">로그인</a></nav>
-            <small>© JWT Blog. All rights reserved.</small>
+            <small>© kod04061's Blog. All rights reserved.</small>
         </div>
     </footer>
     <div class="modal fade" id="confirmActionModal" tabindex="-1" aria-labelledby="confirmActionTitle" aria-hidden="true">

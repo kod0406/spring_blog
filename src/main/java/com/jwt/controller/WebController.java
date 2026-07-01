@@ -187,11 +187,6 @@ public class WebController {
         });
     }
 
-    @GetMapping("/email")
-    public String emailForm() {
-        return "email";
-    }
-
     @GetMapping("/register")
     public String registerForm(Model model) {
         model.addAttribute("registrationDto", new RegistrationDto());
