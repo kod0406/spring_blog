@@ -56,7 +56,7 @@ class CommentServiceTest {
         List<CommentDto.Response> tree = commentService.getTree(post.getPostId(), member);
 
         assertThat(deleted.getDeleted()).isTrue();
-        assertThat(deleted.getContent()).isEmpty();
+        assertThat(deleted.getContent()).isEqualTo(" ");
         assertThat(tree).hasSize(1);
         assertThat(tree.get(0).getChildren()).hasSize(1);
         assertThat(tree.get(0).getChildren().get(0).getContent()).isEqualTo("삭제된 댓글입니다.");
