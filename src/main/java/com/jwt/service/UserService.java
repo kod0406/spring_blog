@@ -132,14 +132,49 @@ public class UserService implements ApplicationRunner {
     @Transactional
     public User updateAdminFields(Long userId, String role, String status, User admin) {
         authorizationService.requireAdmin(admin);
-        User user = getUser(userId);
+        User target = getUser(userId);
+
+        if (isBootstrapAdmin(target)) {
+            throw new IllegalArgumentException("최초 관리자 계정은 변경할 수 없습니다.");
+        }
+
         if (role != null && !role.isBlank()) {
-            user.setRole(role);
+            UserRole newRole = parseRole(role);
+
+            if (target.getRoleEnum() == UserRole.ADMIN && newRole != UserRole.ADMIN) {
+                long adminCount = userRepository.countByRole(UserRole.ADMIN);
+                if (adminCount <= 1) {
+                    throw new IllegalStateException("최소 1명의 관리자가 필요합니다.");
+                }
+            }
+
+            target.setRoleEnum(newRole);
         }
         if (status != null && !status.isBlank()) {
-            user.setStatus(status);
+            target.setStatusEnum(parseStatus(status));
         }
-        return user;
+        return target;
+    }
+
+    private boolean isBootstrapAdmin(User target) {
+        return adminEmail != null && !adminEmail.isBlank()
+                && adminEmail.trim().equalsIgnoreCase(target.getEmail());
+    }
+
+    private UserRole parseRole(String role) {
+        try {
+            return UserRole.valueOf(role.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("유효하지 않은 역할입니다: " + role);
+        }
+    }
+
+    private UserStatus parseStatus(String status) {
+        try {
+            return UserStatus.valueOf(status.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("유효하지 않은 상태입니다: " + status);
+        }
     }
 
     private User getUser(Long userId) {
