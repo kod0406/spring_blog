@@ -1,4 +1,4 @@
-name: JWT Blog Blue-Green Deploy
+name: Blog Blue-Green Deploy
 
 on:
   push:
